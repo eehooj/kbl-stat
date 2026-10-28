@@ -140,6 +140,28 @@ class TeamSeasonStanding(Base):
     __table_args__ = (UniqueConstraint("season_id", "team_name", name="uq_team_season_standing"),)
 
 
+class TeamFormSnapshot(Base):
+    """Leakage-safe features derived solely from completed visible schedule games."""
+    __tablename__ = "team_form_snapshots"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    team_name: Mapped[str] = mapped_column(String(100))
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    games_played: Mapped[int] = mapped_column(Integer)
+    wins: Mapped[int] = mapped_column(Integer)
+    losses: Mapped[int] = mapped_column(Integer)
+    recent_five_wins: Mapped[int] = mapped_column(Integer)
+    recent_five_losses: Mapped[int] = mapped_column(Integer)
+    recent_ten_wins: Mapped[int] = mapped_column(Integer)
+    recent_ten_losses: Mapped[int] = mapped_column(Integer)
+    average_points_for: Mapped[float] = mapped_column(Float)
+    average_points_against: Mapped[float] = mapped_column(Float)
+    rest_days: Mapped[int | None] = mapped_column(Integer)
+    calculation_version: Mapped[str] = mapped_column(String(50))
+    calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("season_id", "team_name", "as_of", name="uq_team_form_snapshot"),)
+
+
 class ChallengeQuestion(Base):
     __tablename__ = "challenge_questions"
     id: Mapped[int] = mapped_column(primary_key=True)

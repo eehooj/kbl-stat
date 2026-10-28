@@ -5,6 +5,7 @@ from app.collectors.official_pages import KBL_BASE_URL, KBLRenderedPageClient
 from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
+from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
 from app.services.visible_schedule_collection import (
     collect_visible_schedule,
@@ -74,6 +75,18 @@ def collect_team_rankings() -> None:
     with _session() as session:
         count = collect_visible_team_rankings(session, page)
     typer.echo(f"공식 팀 순위 화면에 표시된 팀 성적 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("compute-team-form")
+def compute_team_form(
+    season: str = typer.Option(..., "--season", help="예: 2026-2027"),
+    as_of: str | None = typer.Option(None, "--as-of", help="예: 2026-10-29T19:00+09:00"),
+) -> None:
+    """기준 시각 이전에 완료된 경기만 사용해 팀 폼을 계산한다."""
+    cutoff = parse_as_of(as_of)
+    with _session() as session:
+        forms = compute_and_store_team_forms(session, season, cutoff)
+    typer.echo(f"{season} 시즌 팀 폼 {len(forms)}건을 {cutoff.isoformat()} 기준으로 계산·저장했습니다.")
 
 
 @app.command("predict-weekly6")
