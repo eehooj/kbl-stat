@@ -6,7 +6,10 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.visible_record_collection import collect_season_leaders
-from app.services.visible_schedule_collection import collect_visible_schedule
+from app.services.visible_schedule_collection import (
+    collect_visible_schedule,
+    collect_visible_schedule_pages,
+)
 from app.services.weekly6_service import get_round, render_weekly6
 
 app = typer.Typer(no_args_is_help=True)
@@ -49,6 +52,18 @@ def collect_schedule() -> None:
     with _session() as session:
         count = collect_visible_schedule(session, page)
     typer.echo(f"공식 일정 화면에 표시된 경기 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("collect-season-schedule")
+def collect_season_schedule(season: str = typer.Option(..., "--season", help="예: 2026-2027")) -> None:
+    """선택 시즌의 10월~5월 일정 화면을 월별로 렌더링해 수집한다."""
+    pages = KBLRenderedPageClient().render_schedule_season(season)
+    with _session() as session:
+        games, empty_pages = collect_visible_schedule_pages(session, pages)
+    typer.echo(
+        f"{season} 시즌 일정 화면 {len(pages)}개월을 확인했습니다. "
+        f"표시된 경기 {games}건을 수집·갱신했고, 경기 카드가 없는 화면은 {empty_pages}개월입니다."
+    )
 
 
 @app.command("predict-weekly6")

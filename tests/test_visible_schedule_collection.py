@@ -1,3 +1,4 @@
+from app.collectors.official_pages import _parse_season, _rendered_month
 from app.services.visible_schedule_collection import parse_visible_schedule
 
 
@@ -51,3 +52,8 @@ LG
     fixture = parse_visible_schedule(text)[0]
     assert (fixture.first_team_name, fixture.first_score) == ("KCC", 68)
     assert (fixture.second_team_name, fixture.second_score) == ("LG", 103)
+
+
+def test_schedule_season_and_month_headers_are_validated() -> None:
+    assert _parse_season("2026-2027") == (2026, 2027)
+    assert _rendered_month("일정\n2026. 10\n10.03") == (2026, 10)

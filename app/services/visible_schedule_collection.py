@@ -134,3 +134,18 @@ def collect_visible_schedule(session: Session, page: RenderedPage) -> int:
                 setattr(game, name, value)
     session.commit()
     return len(fixtures)
+
+
+def collect_visible_schedule_pages(session: Session, pages: list[RenderedPage]) -> tuple[int, int]:
+    """Collect a season's rendered pages, retaining empty month evidence too."""
+    collected_games = 0
+    empty_pages = 0
+    for page in pages:
+        try:
+            collected_games += collect_visible_schedule(session, page)
+        except ValueError as error:
+            if str(error) != "Rendered schedule had no parseable game cards":
+                raise
+            collect_rendered_page(session, page, "visible schedule games=0")
+            empty_pages += 1
+    return collected_games, empty_pages
