@@ -3,5 +3,5 @@
 __pycache__/
 .pytest_cache/
 *.py[cod]
-kbl_predictor.db
+*.db
 kbl_predictor.egg-info/
