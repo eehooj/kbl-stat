@@ -232,6 +232,21 @@ class Weekly6Fixture(Base):
     __table_args__ = (UniqueConstraint("round_id", "ordinal", name="uq_weekly6_round_ordinal"),)
 
 
+class Weekly6VisibleFixture(Base):
+    """A Weekly 6 candidate in its visible team order; home/away is not inferred."""
+    __tablename__ = "weekly6_visible_fixtures"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    round_id: Mapped[int] = mapped_column(ForeignKey("weekly6_rounds.id"))
+    ordinal: Mapped[int] = mapped_column(Integer)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    venue: Mapped[str] = mapped_column(String(150))
+    first_team_name: Mapped[str] = mapped_column(String(100))
+    second_team_name: Mapped[str] = mapped_column(String(100))
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("round_id", "ordinal", name="uq_weekly6_visible_round_ordinal"),)
+
+
 class CollectionLog(Base):
     __tablename__ = "collection_logs"
     id: Mapped[int] = mapped_column(primary_key=True)

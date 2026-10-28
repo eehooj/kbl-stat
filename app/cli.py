@@ -12,6 +12,7 @@ from app.services.visible_schedule_collection import (
     collect_visible_schedule_pages,
 )
 from app.services.visible_team_ranking_collection import collect_visible_team_rankings
+from app.services.weekly6_collection import Weekly6Visibility, collect_weekly6_page
 from app.services.weekly6_service import get_round, render_weekly6
 
 app = typer.Typer(no_args_is_help=True)
@@ -33,9 +34,11 @@ def collect_weekly6() -> None:
     """공식 Weekly 6 화면에 렌더링된 텍스트만 보존한다."""
     page = KBLRenderedPageClient().render(f"{KBL_BASE_URL}/game/challenge/weekly6")
     with _session() as session:
-        from app.services.visible_record_collection import collect_rendered_page
-        collect_rendered_page(session, page, "Weekly 6 화면 원문; 규칙 추출 전")
-    typer.echo(f"공식 Weekly 6 화면을 확인했습니다: {page.url}\n표시되지 않은 문제 데이터는 저장하지 않았습니다.")
+        visibility, count = collect_weekly6_page(session, page)
+    if visibility is Weekly6Visibility.BODY_NOT_VISIBLE:
+        typer.echo("공식 Weekly 6 화면 본문이 표시되지 않았습니다. 문제 미등록과 렌더링 실패를 구분할 수 없어 예측을 만들지 않았습니다.")
+        return
+    typer.echo(f"공식 Weekly 6 화면에서 후보 경기 {count}건을 수집·갱신했습니다: {page.url}")
 
 
 @app.command("collect-season-leaders")
