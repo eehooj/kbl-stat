@@ -43,16 +43,15 @@ pytest
 
 월요일 Asia/Seoul 시간대에 `collect-weekly6`를 먼저 한 번 실행한다. 문제 미등록일 때는 30~60분 이상의 간격으로 제한 재시도를 권장한다. 등록 확인 뒤에는 마감 전 한 번 더 실행해 기록·출전 정보 변경을 반영한다. 스케줄러(Cron, Windows 작업 스케줄러)는 운영 환경에서 실행 주체에 맞춰 설정하며, 이번 범위에서는 알림이나 게임 제출을 수행하지 않는다.
 
-## Phase 1 경기 데이터 수집
+## 화면 기반 기록 수집
 
-공식 API로 검증한 일정·경기 상세·팀 기록·선수 기록 수집기를 제공한다. 시즌 경계를 추측하지 않도록 날짜 범위를 명시한다.
+내부 API를 직접 호출하지 않는다. 브라우저가 공식 기록 페이지를 렌더링한 뒤, 화면상 표시되는 텍스트만 읽는다. 현재는 시즌 리더 화면의 선수 순위·지표를 수집한다.
 
 ```powershell
-python -m app.cli collect-games --from-date 20261001 --to-date 20261031
-python -m app.cli collect-stats
+python -m app.cli collect-season-leaders
 ```
 
-확인된 API 계약과 필드 목록은 [docs/kbl-official-api.md](docs/kbl-official-api.md)를 참고한다.
+이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
 
 ## 확률과 백테스트 원칙
 

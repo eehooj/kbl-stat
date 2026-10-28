@@ -85,6 +85,21 @@ class PlayerGameStat(Base):
     __table_args__ = (UniqueConstraint("game_id", "player_id", name="uq_player_game_stat"),)
 
 
+class SeasonPlayerStat(Base):
+    """A value shown on the rendered season-leader page, not a game box score."""
+    __tablename__ = "season_player_stats"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    metric: Mapped[str] = mapped_column(String(50))
+    rank: Mapped[int] = mapped_column(Integer)
+    player_name: Mapped[str] = mapped_column(String(100))
+    team_name: Mapped[str] = mapped_column(String(100))
+    value: Mapped[float] = mapped_column(Float)
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("season_id", "metric", "player_name", "team_name", name="uq_season_leader_player"),)
+
+
 class ChallengeQuestion(Base):
     __tablename__ = "challenge_questions"
     id: Mapped[int] = mapped_column(primary_key=True)

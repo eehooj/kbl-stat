@@ -1,24 +1,17 @@
-# Phase 1 — 공식 경기 일정·기록 수집 구현
+# Phase 1 — 공식 경기 일정·기록 수집 구현 (대체됨)
 
 - 완료일: 2026-10-28 (Asia/Seoul)
 - 목표: 확인된 KBL 공식 인터페이스로 일정, 팀 기록, 선수 기록을 누적 저장한다.
 
+> 이 기록의 직접 API 수집 구현은 이후 개인용 화면 렌더링 수집기로 대체됐다. 현재 사용하면 안 된다. 대체 이유와 현행 방식은 별도 작업 기록에 남긴다.
+
 ## 조사 결과
 
-KBL 공식 웹 번들 및 실제 API 응답으로 다음 경로를 확인했다.
-
-- 일정: `GET https://api.kbl.or.kr/match/list`
-- 경기 상세: `GET /match/{gmkey}`
-- 팀 기록: `GET /match/{gmkey}/team-record`
-- 선수 기록: `GET /match/{gmkey}/player-stat`
-
-필수 공개 요청 헤더와 일정의 실제 입력·출력 필드는 [KBL 공식 데이터 수집 계약](../kbl-official-api.md)에 기록했다.
+당시 내부 통신 경로를 조사했으나, 외부 자동 수집 허가를 뜻하지 않으므로 현행 수집기에는 사용하지 않는다.
 
 ## 구현 내용
 
-- `KBLApiClient`에 확인된 API와 웹앱 헤더만 구현
-- `collect-games --from-date YYYYMMDD --to-date YYYYMMDD` CLI 추가
-- `collect-stats [--limit N]` CLI 추가
+- 내부 통신 경로 기반 일정·기록 수집기를 구현
 - `gmkey`와 시즌을 기준으로 경기 중복을 방지하고, 재수집 시 점수·상태·통계를 갱신
 - 팀 코드·선수 코드의 안정적 ID 저장
 - 응답 원문·해시·수집 로그 저장
@@ -27,13 +20,6 @@ KBL 공식 웹 번들 및 실제 API 응답으로 다음 경로를 확인했다.
 ## 실제 수집 검증
 
 분리 SQLite DB(`phase1_check.db`)에서 다음을 수행했다.
-
-```powershell
-$env:DATABASE_URL='sqlite:///./phase1_check.db'
-python -m app.cli init-db
-python -m app.cli collect-games --from-date 20261001 --to-date 20261031
-python -m app.cli collect-stats --limit 1
-```
 
 결과:
 

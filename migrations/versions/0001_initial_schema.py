@@ -17,7 +17,10 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.create_all(bind)
+    # Keep this historical revision fixed to its original schema. New models
+    # must be created by their own subsequent Alembic revisions.
+    tables = [table for table in Base.metadata.sorted_tables if table.name != "season_player_stats"]
+    Base.metadata.create_all(bind, tables=tables)
 
 
 def downgrade() -> None:

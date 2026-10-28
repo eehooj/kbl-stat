@@ -1,11 +1,11 @@
 import typer
 from sqlalchemy import create_engine, select
 
-from app.collectors.official_pages import KBLApiClient, KBLOfficialPageClient
+from app.collectors.official_pages import KBL_BASE_URL, KBLRenderedPageClient
 from app.config import get_settings
 from app.database import Base, make_session_factory
-from app.models import CollectionLog, RawSourceDocument, Weekly6Round
-from app.services.game_collection import collect_completed_game_stats, collect_schedule
+from app.models import Weekly6Round
+from app.services.visible_record_collection import collect_season_leaders
 from app.services.weekly6_service import get_round, render_weekly6
 
 app = typer.Typer(no_args_is_help=True)
@@ -24,37 +24,21 @@ def init_db() -> None:
 
 @app.command("collect-weekly6")
 def collect_weekly6() -> None:
-    """Fetch and preserve the official page. Extraction is enabled only after schema verification."""
-    page = KBLOfficialPageClient().fetch_challenge("weekly6")
+    """공식 Weekly 6 화면에 렌더링된 텍스트만 보존한다."""
+    page = KBLRenderedPageClient().render(f"{KBL_BASE_URL}/game/challenge/weekly6")
     with _session() as session:
-        session.add(CollectionLog(source_url=page.url, status="fetched_unparsed", fetched_at=page.fetched_at,
-                                  response_sha256=page.content_hash,
-                                  detail="Official Weekly 6 HTML retained for parser verification; no unverified fields extracted."))
-        existing = session.scalar(select(RawSourceDocument).where(RawSourceDocument.content_hash == page.content_hash))
-        if existing is None:
-            session.add(RawSourceDocument(source_url=page.url, fetched_at=page.fetched_at,
-                                          content_hash=page.content_hash, body=page.body))
-        session.commit()
-    typer.echo(f"공식 Weekly 6 페이지를 확인했습니다: {page.url}\n추출 규칙 미검증 상태이므로 문제 데이터를 임의 저장하지 않았습니다.")
+        from app.services.visible_record_collection import collect_rendered_page
+        collect_rendered_page(session, page, "Weekly 6 화면 원문; 규칙 추출 전")
+    typer.echo(f"공식 Weekly 6 화면을 확인했습니다: {page.url}\n표시되지 않은 문제 데이터는 저장하지 않았습니다.")
 
 
-@app.command("collect-games")
-def collect_games(
-    from_date: str = typer.Option(..., "--from-date", help="시작일 YYYYMMDD"),
-    to_date: str = typer.Option(..., "--to-date", help="종료일 YYYYMMDD"),
-) -> None:
-    """명시된 날짜 범위의 공식 경기 일정을 수집·갱신한다."""
+@app.command("collect-season-leaders")
+def collect_season_leaders_command() -> None:
+    """공식 기록 페이지에 화면상 표시되는 시즌 리더를 수집한다."""
+    page = KBLRenderedPageClient().render_season_leaders()
     with _session() as session:
-        count = collect_schedule(session, KBLApiClient(), from_date, to_date)
-    typer.echo(f"공식 경기 일정 {count}건을 수집·갱신했습니다.")
-
-
-@app.command("collect-stats")
-def collect_stats(limit: int | None = typer.Option(None, "--limit", min=1, help="수집할 종료 경기 수 상한")) -> None:
-    """수집된 종료 경기의 공식 팀·선수 기록을 수집·갱신한다."""
-    with _session() as session:
-        count = collect_completed_game_stats(session, KBLApiClient(), limit)
-    typer.echo(f"종료 경기 {count}건의 팀·선수 기록을 수집·갱신했습니다.")
+        count = collect_season_leaders(session, page)
+    typer.echo(f"공식 기록 화면에 표시된 시즌 리더 {count}건을 수집·갱신했습니다.")
 
 
 @app.command("predict-weekly6")

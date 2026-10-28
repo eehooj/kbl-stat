@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14",
   "beautifulsoup4>=4.12",
-  "httpx>=0.28",
+  "playwright>=1.50",
   "psycopg[binary]>=3.2",
   "pydantic-settings>=2.7",
   "sqlalchemy>=2.0",
