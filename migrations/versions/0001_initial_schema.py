@@ -19,7 +19,10 @@ def upgrade() -> None:
     bind = op.get_bind()
     # Keep this historical revision fixed to its original schema. New models
     # must be created by their own subsequent Alembic revisions.
-    tables = [table for table in Base.metadata.sorted_tables if table.name != "season_player_stats"]
+    tables = [
+        table for table in Base.metadata.sorted_tables
+        if table.name not in {"season_player_stats", "visible_schedule_games"}
+    ]
     Base.metadata.create_all(bind, tables=tables)
 
 

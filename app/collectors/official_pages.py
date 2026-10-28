@@ -10,6 +10,7 @@ from app.config import Settings, get_settings
 
 KBL_BASE_URL = "https://www.kbl.or.kr"
 SEASON_LEADER_URL = f"{KBL_BASE_URL}/record/seasonLeader"
+MATCH_SCHEDULE_URL = f"{KBL_BASE_URL}/match/schedule"
 
 
 @dataclass(frozen=True)
@@ -48,3 +49,6 @@ class KBLRenderedPageClient:
 
     def render_season_leaders(self) -> RenderedPage:
         return self.render(SEASON_LEADER_URL)
+
+    def render_match_schedule(self) -> RenderedPage:
+        return self.render(MATCH_SCHEDULE_URL)

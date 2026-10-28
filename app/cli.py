@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.visible_record_collection import collect_season_leaders
+from app.services.visible_schedule_collection import collect_visible_schedule
 from app.services.weekly6_service import get_round, render_weekly6
 
 app = typer.Typer(no_args_is_help=True)
@@ -39,6 +40,15 @@ def collect_season_leaders_command() -> None:
     with _session() as session:
         count = collect_season_leaders(session, page)
     typer.echo(f"공식 기록 화면에 표시된 시즌 리더 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("collect-schedule")
+def collect_schedule() -> None:
+    """공식 일정 화면에 표시된 경기 카드만 수집한다."""
+    page = KBLRenderedPageClient().render_match_schedule()
+    with _session() as session:
+        count = collect_visible_schedule(session, page)
+    typer.echo(f"공식 일정 화면에 표시된 경기 {count}건을 수집·갱신했습니다.")
 
 
 @app.command("predict-weekly6")

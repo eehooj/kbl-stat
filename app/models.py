@@ -100,6 +100,24 @@ class SeasonPlayerStat(Base):
     __table_args__ = (UniqueConstraint("season_id", "metric", "player_name", "team_name", name="uq_season_leader_player"),)
 
 
+class VisibleScheduleGame(Base):
+    """A game exactly as shown in the rendered schedule; no home/away inference."""
+    __tablename__ = "visible_schedule_games"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    observed_key: Mapped[str] = mapped_column(String(64), unique=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    competition: Mapped[str] = mapped_column(String(50))
+    venue: Mapped[str] = mapped_column(String(150))
+    first_team_name: Mapped[str] = mapped_column(String(100))
+    second_team_name: Mapped[str] = mapped_column(String(100))
+    first_score: Mapped[int | None] = mapped_column(Integer)
+    second_score: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(30))
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class ChallengeQuestion(Base):
     __tablename__ = "challenge_questions"
     id: Mapped[int] = mapped_column(primary_key=True)
