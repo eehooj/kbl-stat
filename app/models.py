@@ -118,6 +118,28 @@ class VisibleScheduleGame(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class TeamSeasonStanding(Base):
+    """A team standing row exactly as displayed on KBL's team-ranking page."""
+    __tablename__ = "team_season_standings"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    team_name: Mapped[str] = mapped_column(String(100))
+    rank: Mapped[int] = mapped_column(Integer)
+    wins: Mapped[int] = mapped_column(Integer)
+    losses: Mapped[int] = mapped_column(Integer)
+    win_rate: Mapped[float] = mapped_column(Float)
+    games_back: Mapped[float] = mapped_column(Float)
+    recent_five: Mapped[str] = mapped_column(String(20))
+    streak: Mapped[str] = mapped_column(String(20))
+    home_record: Mapped[str] = mapped_column(String(20))
+    away_record: Mapped[str] = mapped_column(String(20))
+    next_opponent_name: Mapped[str | None] = mapped_column(String(100))
+    head_to_head: Mapped[str | None] = mapped_column(String(30))
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("season_id", "team_name", name="uq_team_season_standing"),)
+
+
 class ChallengeQuestion(Base):
     __tablename__ = "challenge_questions"
     id: Mapped[int] = mapped_column(primary_key=True)

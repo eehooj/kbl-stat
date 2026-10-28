@@ -51,6 +51,7 @@ pytest
 python -m app.cli collect-season-leaders
 python -m app.cli collect-schedule
 python -m app.cli collect-season-schedule --season 2026-2027
+python -m app.cli collect-team-rankings
 ```
 
 이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
@@ -58,6 +59,8 @@ python -m app.cli collect-season-schedule --season 2026-2027
 `collect-schedule`은 [일정 및 결과](https://www.kbl.or.kr/match/schedule) 화면의 월별 경기 카드에서 날짜·시각·장소·두 팀의 표시 순서·점수·완료 여부만 수집한다. 화면에 홈/원정 라벨이 없으므로 팀 표시 순서를 홈/원정으로 추정하지 않는다. 미래 경기에 표시되는 `0-0`은 점수가 아니라 미확정 일정으로 저장한다.
 
 `collect-season-schedule --season 2026-2027`은 같은 화면의 월 이동 버튼으로 10월부터 다음 해 5월까지를 차례로 렌더링한다. 경기 카드가 없는 월도 화면 원문과 수집 이력은 남기며, 표시되지 않은 과거·미래 경기를 만들지 않는다.
+
+`collect-team-rankings`은 [팀 순위](https://www.kbl.or.kr/match/team-ranking) 화면에 표시되는 시즌 승·패·승률, 최근 5경기, 연속, 홈·원정 성적, 다음 상대와 상대전적을 수집한다. 이 값은 화면 관측 시점의 스냅샷이며, 득실점·리바운드·턴오버·공격/수비 효율처럼 현재 표에 없는 값은 저장하지 않는다.
 
 ## 확률과 백테스트 원칙
 

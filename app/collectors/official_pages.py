@@ -12,6 +12,7 @@ from app.config import Settings, get_settings
 KBL_BASE_URL = "https://www.kbl.or.kr"
 SEASON_LEADER_URL = f"{KBL_BASE_URL}/record/seasonLeader"
 MATCH_SCHEDULE_URL = f"{KBL_BASE_URL}/match/schedule"
+TEAM_RANKING_URL = f"{KBL_BASE_URL}/match/team-ranking"
 SCHEDULE_MONTH_HEADER = re.compile(r"(?m)^(?P<year>20\d{2})\s*\.\s*(?P<month>\d{1,2})$")
 
 
@@ -54,6 +55,9 @@ class KBLRenderedPageClient:
 
     def render_match_schedule(self) -> RenderedPage:
         return self.render(MATCH_SCHEDULE_URL)
+
+    def render_team_rankings(self) -> RenderedPage:
+        return self.render(TEAM_RANKING_URL)
 
     def render_schedule_season(self, season: str) -> list[RenderedPage]:
         """Navigate KBL's visible schedule calendar for October through May."""

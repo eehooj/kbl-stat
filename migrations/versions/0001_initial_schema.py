@@ -21,7 +21,7 @@ def upgrade() -> None:
     # must be created by their own subsequent Alembic revisions.
     tables = [
         table for table in Base.metadata.sorted_tables
-        if table.name not in {"season_player_stats", "visible_schedule_games"}
+        if table.name not in {"season_player_stats", "visible_schedule_games", "team_season_standings"}
     ]
     Base.metadata.create_all(bind, tables=tables)
 
