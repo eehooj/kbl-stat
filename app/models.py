@@ -100,6 +100,24 @@ class SeasonPlayerStat(Base):
     __table_args__ = (UniqueConstraint("season_id", "metric", "player_name", "team_name", name="uq_season_leader_player"),)
 
 
+class VisiblePlayerSeasonStat(Base):
+    """A player's season totals as visibly rendered on KBL's player-record table."""
+    __tablename__ = "visible_player_season_stats"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id"))
+    player_name: Mapped[str] = mapped_column(String(100))
+    team_name: Mapped[str] = mapped_column(String(100))
+    games_played: Mapped[int] = mapped_column(Integer)
+    points: Mapped[int] = mapped_column(Integer)
+    rebounds: Mapped[int] = mapped_column(Integer)
+    assists: Mapped[int] = mapped_column(Integer)
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        UniqueConstraint("season_id", "player_name", "team_name", name="uq_visible_player_season_stat"),
+    )
+
+
 class VisibleScheduleGame(Base):
     """A game exactly as shown in the rendered schedule; no home/away inference."""
     __tablename__ = "visible_schedule_games"

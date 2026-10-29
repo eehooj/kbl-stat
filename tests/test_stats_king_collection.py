@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from app.collectors.official_pages import RenderedPage
-from app.services.stats_king_collection import LOGIN_REQUIRED_TEXT, parse_visible_stats_king_game
+from app.services.stats_king_collection import parse_visible_stats_king_game
 
 
 def test_parses_only_a_complete_visible_stats_king_game_card() -> None:
@@ -32,7 +32,3 @@ def test_does_not_make_a_game_from_an_incomplete_card() -> None:
         content_hash="a" * 64, visible_text="StatsKing\n2026.10.29\n내 선택 보기\n",
     )
     assert parse_visible_stats_king_game(page) is None
-
-
-def test_login_gate_text_is_explicit() -> None:
-    assert LOGIN_REQUIRED_TEXT == "로그인 후 이용해주세요."

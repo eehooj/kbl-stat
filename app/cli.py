@@ -6,7 +6,12 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
-from app.services.stats_king_collection import LOGIN_REQUIRED_TEXT, collect_visible_stats_king_game
+from app.services.player_record_collection import collect_visible_player_records
+from app.services.stats_king_collection import collect_visible_stats_king_game
+from app.services.stats_king_recommendation import (
+    recommend_stats_king_leaders,
+    render_stats_king_recommendation,
+)
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
 from app.services.visible_schedule_collection import (
@@ -56,28 +61,24 @@ def collect_daily_picks() -> None:
 @app.command("collect-stats-king")
 def collect_stats_king() -> None:
     """공식 StatsKing 화면에 보이는 경기 카드만 수집한다."""
-    page = KBLRenderedPageClient().render_stats_king_participation()
+    page = KBLRenderedPageClient().render_stats_king()
     with _session() as session:
         game = collect_visible_stats_king_game(session, page)
     if game is None:
         typer.echo("공식 StatsKing 화면에 완전한 경기 카드가 표시되지 않았습니다. 문제를 만들지 않았습니다.")
         return
-    if LOGIN_REQUIRED_TEXT in page.visible_text:
-        typer.echo(
-            "StatsKing 참여 화면은 로그인 후에만 선수 선택지를 표시합니다. 경기 카드는 저장했고, "
-            "문제·예측은 만들지 않았습니다. 전용 프로필 로그인에는 open-stats-king-login을 사용하세요."
-        )
-        return
     typer.echo(
-        f"공식 StatsKing 참여 화면과 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}. "
-        "선수 선택지 원문은 보존했지만, 확인된 화면 구조 파서가 아직 없어 문제·예측은 만들지 않았습니다."
+        f"공식 StatsKing 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}."
     )
 
 
-@app.command("open-stats-king-login")
-def open_stats_king_login() -> None:
-    """전용 Chrome 프로필에서 KBL 로그인을 사용자가 직접 완료하도록 연다."""
-    KBLRenderedPageClient().open_stats_king_login()
+@app.command("collect-player-records")
+def collect_player_records() -> None:
+    """공개 선수 기록 표의 모든 페이지에서 기본 누적 기록을 수집한다."""
+    pages = KBLRenderedPageClient().render_player_records()
+    with _session() as session:
+        count = collect_visible_player_records(session, pages)
+    typer.echo(f"공식 선수 기록 표 {len(pages)}페이지에서 선수 기록 {count}건을 수집·갱신했습니다.")
 
 
 @app.command("collect-season-leaders")
@@ -137,9 +138,16 @@ def predict_weekly6(week: str | None = typer.Option(None, "--week")) -> None:
         typer.echo(render_weekly6(get_round(session, week)))
 
 
+@app.command("predict-stats-king")
+def predict_stats_king() -> None:
+    """공개 선수 기록으로 현재 StatsKing 경기의 세 부문 후보를 추천한다."""
+    with _session() as session:
+        typer.echo(render_stats_king_recommendation(recommend_stats_king_leaders(session)))
+
+
 @app.command("predict-all")
 def predict_all() -> None:
-    typer.echo("[StatsKing] 확인된 문제 데이터가 없습니다.")
+    predict_stats_king()
     typer.echo("[Daily Picks] 확인된 문제 데이터가 없습니다.")
     predict_weekly6()
 

@@ -54,7 +54,8 @@ python -m app.cli collect-season-schedule --season 2026-2027
 python -m app.cli collect-team-rankings
 python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+09:00
 python -m app.cli collect-stats-king
-python -m app.cli open-stats-king-login
+python -m app.cli collect-player-records
+python -m app.cli predict-stats-king
 python -m app.cli collect-daily-picks
 ```
 
@@ -72,9 +73,7 @@ python -m app.cli collect-daily-picks
 
 `collect-daily-picks`은 [Daily Picks](https://www.kbl.or.kr/game/challenge/daily-picks) 화면의 날짜·시각·장소·질문·선택지를 저장한다. 수집된 일정 카드 중 날짜·시각·장소가 같고 양 팀 이름이 선택지에서 함께 확인되는 카드가 정확히 하나일 때만 연결한다. 질문 문구에서는 `득점`, `리바운드` 같은 지표와 `1~4쿼터` 표기만 그대로 분류하며, 화면에 절대 마감 시각이나 공식 문제 ID가 표시되지 않으면 저장하지 않는다.
 
-`collect-stats-king`은 [StatsKing](https://www.kbl.or.kr/game/challenge/stats) 화면에 표시된 현재 경기 카드의 시각·장소·두 팀의 표시 순서·참여 상태·상대 마감 문구를 저장한다. 팀 표시 순서는 홈/원정으로 해석하지 않는다. 현재 KBL은 선수 선택지와 기록 항목을 로그인 뒤에만 표시한다. 필요하면 `.env`에 전용 Chrome 프로필 폴더를 `KBL_BROWSER_USER_DATA_DIR`로 지정하고 `python -m app.cli open-stats-king-login`을 실행해 사용자가 직접 로그인한다. 로그인 정보와 브라우저 프로필은 Git에 저장하지 않는다. 이후 `collect-stats-king`은 같은 전용 프로필을 읽기 전용으로 재사용한다. 실제 선택지·기록 항목이 수집되기 전까지는 `challenge_questions`나 예측을 만들지 않는다.
-
-전용 프로필은 기본 Chrome 프로필과 분리된 비어 있는 폴더로 지정한다. 예: `KBL_BROWSER_USER_DATA_DIR=C:\\kbl-predictor-browser-profile`. `open-stats-king-login`으로 로그인만 마친 뒤 `collect-stats-king`을 실행한다. 자동 선수 선택·응모·제출은 구현하지 않는다.
+`collect-stats-king`은 [StatsKing](https://www.kbl.or.kr/game/challenge/stats) 화면에 표시된 현재 경기 카드의 시각·장소·두 팀의 표시 순서·참여 상태·상대 마감 문구를 저장한다. `collect-player-records`는 공개 [선수기록](https://www.kbl.or.kr/record/player) 표의 모든 페이지에서 선수별 경기 수와 누적 득점·리바운드·어시스트를 수집한다. 팀 엠블럼도 화면상 팀 표현으로 확인해 공식 팀명에 연결한다. `predict-stats-king`은 현재 경기의 두 팀 선수만 대상으로 세 부문의 경기당 평균을 비교한다. 로그인·자동 선수 선택·응모·제출은 필요하지도, 구현하지도 않는다.
 
 ## 확률과 백테스트 원칙
 
