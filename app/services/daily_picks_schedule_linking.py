@@ -15,6 +15,10 @@ from app.models import (
 
 MATCHING_METHOD = "same-start-venue-two-option-team-label-containment-v1"
 METRICS = {
+    "필드골 성공률": "field_goal_pct",
+    "세컨드 찬스에 의한 득점": "second_chance_points",
+    "벤치 득점": "bench_points",
+    "덩크슛": "dunk_made",
     "2점슛 성공": "two_point_made",
     "득점": "points",
     "리바운드": "rebounds",
