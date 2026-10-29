@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     kbl_http_timeout_seconds: float = 20.0
     kbl_user_agent: str = "kbl-predictor/0.1 (non-commercial research)"
     kbl_browser_channel: str = "chrome"
+    kbl_browser_user_data_dir: str | None = None
 
 
 @lru_cache

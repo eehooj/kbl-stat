@@ -39,14 +39,14 @@ class KBLRenderedPageClient:
 
     def render(self, url: str) -> RenderedPage:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
-            page = browser.new_page(locale="ko-KR")
+            context = self._launch_context(playwright, headless=True)
+            page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
             page.wait_for_timeout(1500)
             visible_text = page.locator("body").inner_text()
             title = page.title()
             final_url = page.url
-            browser.close()
+            context.close()
         return RenderedPage(
             url=final_url, fetched_at=datetime.now(UTC), title=title, visible_text=visible_text,
             content_hash=sha256(visible_text.encode("utf-8")).hexdigest(),
@@ -67,13 +67,39 @@ class KBLRenderedPageClient:
     def render_stats_king(self) -> RenderedPage:
         return self.render(STATS_KING_URL)
 
+    def render_stats_king_participation(self) -> RenderedPage:
+        """Open the rendered participation panel without choosing or submitting anything."""
+        with sync_playwright() as playwright:
+            context = self._launch_context(playwright, headless=True)
+            page = context.new_page()
+            page.goto(STATS_KING_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            page.wait_for_timeout(1500)
+            participation = page.get_by_text("게임참여", exact=True)
+            if participation.count() >= 2:
+                participation.last.click()
+                page.wait_for_timeout(700)
+            rendered = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
+            context.close()
+        return rendered
+
+    def open_stats_king_login(self) -> None:
+        """Open a dedicated persistent profile so the user can log in manually."""
+        if self.settings.kbl_browser_user_data_dir is None:
+            raise ValueError("KBL_BROWSER_USER_DATA_DIR를 .env에 설정해야 합니다")
+        with sync_playwright() as playwright:
+            context = self._launch_context(playwright, headless=False)
+            page = context.pages[0] if context.pages else context.new_page()
+            page.goto(STATS_KING_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            input("열린 Chrome에서 KBL 로그인을 완료한 뒤 Enter를 누르세요. 로그인 외의 선택·응모·제출은 하지 마세요: ")
+            context.close()
+
     def render_schedule_season(self, season: str) -> list[RenderedPage]:
         """Navigate KBL's visible schedule calendar for October through May."""
         start_year, end_year = _parse_season(season)
         months = [(start_year, month) for month in range(10, 13)] + [(end_year, month) for month in range(1, 6)]
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
-            page = browser.new_page(locale="ko-KR")
+            context = self._launch_context(playwright, headless=True)
+            page = context.new_page()
             page.goto(MATCH_SCHEDULE_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
             page.wait_for_timeout(1500)
             current = _rendered_month(page.locator("body").inner_text())
@@ -100,8 +126,20 @@ class KBLRenderedPageClient:
                 if index < len(months) - 1:
                     page.get_by_role("button", name="다음으로").click()
                     page.wait_for_timeout(700)
-            browser.close()
+            context.close()
         return pages
+
+    def _launch_context(self, playwright, *, headless: bool):
+        profile_dir = self.settings.kbl_browser_user_data_dir
+        if profile_dir is not None:
+            return playwright.chromium.launch_persistent_context(
+                profile_dir,
+                channel=self.settings.kbl_browser_channel,
+                headless=headless,
+                locale="ko-KR",
+            )
+        browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=headless)
+        return browser.new_context(locale="ko-KR")
 
 
 def _parse_season(season: str) -> tuple[int, int]:

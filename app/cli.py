@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
-from app.services.stats_king_collection import collect_visible_stats_king_game
+from app.services.stats_king_collection import LOGIN_REQUIRED_TEXT, collect_visible_stats_king_game
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
 from app.services.visible_schedule_collection import (
@@ -56,16 +56,28 @@ def collect_daily_picks() -> None:
 @app.command("collect-stats-king")
 def collect_stats_king() -> None:
     """공식 StatsKing 화면에 보이는 경기 카드만 수집한다."""
-    page = KBLRenderedPageClient().render_stats_king()
+    page = KBLRenderedPageClient().render_stats_king_participation()
     with _session() as session:
         game = collect_visible_stats_king_game(session, page)
     if game is None:
         typer.echo("공식 StatsKing 화면에 완전한 경기 카드가 표시되지 않았습니다. 문제를 만들지 않았습니다.")
         return
+    if LOGIN_REQUIRED_TEXT in page.visible_text:
+        typer.echo(
+            "StatsKing 참여 화면은 로그인 후에만 선수 선택지를 표시합니다. 경기 카드는 저장했고, "
+            "문제·예측은 만들지 않았습니다. 전용 프로필 로그인에는 open-stats-king-login을 사용하세요."
+        )
+        return
     typer.echo(
-        f"공식 StatsKing 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}. "
-        "선수 선택지·기록 항목이 화면에 표시되지 않아 문제·예측은 만들지 않았습니다."
+        f"공식 StatsKing 참여 화면과 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}. "
+        "선수 선택지 원문은 보존했지만, 확인된 화면 구조 파서가 아직 없어 문제·예측은 만들지 않았습니다."
     )
+
+
+@app.command("open-stats-king-login")
+def open_stats_king_login() -> None:
+    """전용 Chrome 프로필에서 KBL 로그인을 사용자가 직접 완료하도록 연다."""
+    KBLRenderedPageClient().open_stats_king_login()
 
 
 @app.command("collect-season-leaders")

@@ -16,6 +16,7 @@ KST = ZoneInfo("Asia/Seoul")
 DATE = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
 TIME = re.compile(r"^\d{2}:\d{2}$")
 DEADLINE = re.compile(r"^게임 마감까지 .+남았습니다\.$")
+LOGIN_REQUIRED_TEXT = "로그인 후 이용해주세요."
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,8 @@ def parse_visible_stats_king_game(page: RenderedPage) -> VisibleStatsKingGame | 
 
 def collect_visible_stats_king_game(session: Session, page: RenderedPage) -> VisibleStatsKingGame | None:
     game = parse_visible_stats_king_game(page)
-    detail = "StatsKing visible game card unavailable" if game is None else "StatsKing visible game card=1; player choices unavailable"
+    access = "login required" if LOGIN_REQUIRED_TEXT in page.visible_text else "participation panel rendered"
+    detail = "StatsKing visible game card unavailable" if game is None else f"StatsKing visible game card=1; {access}"
     collect_rendered_page(session, page, detail, commit=False)
     if game is None:
         session.commit()
