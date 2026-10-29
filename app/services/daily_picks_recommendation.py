@@ -15,6 +15,7 @@ from app.models import (
 from app.services.daily_picks_schedule_linking import classify_visible_daily_pick
 
 METRIC_LABELS = {
+    "field_goal_pct": "필드골 성공률",
     "steals": "스틸",
     "two_point_made": "2점슛 성공",
     "turnovers": "턴오버",
@@ -54,7 +55,7 @@ def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
         if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
             recommendations.append(DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인"))
             continue
-        averages = _recent_team_averages(session, game, metric)
+        averages = _recent_field_goal_percentages(session, game) if metric == "field_goal_pct" else _recent_team_averages(session, game, metric)
         first = averages.get(game.first_team_name)
         second = averages.get(game.second_team_name)
         if first is None or second is None or min(first[0], second[0]) < 3:
@@ -102,6 +103,28 @@ def _recent_team_averages(
     return {
         team: (len(games), sum(games.values()) / len(games))
         for team, games in totals.items() if games
+    }
+
+
+def _recent_field_goal_percentages(session: Session, target: VisibleScheduleGame) -> dict[str, tuple[int, float]]:
+    rows = session.execute(
+        select(VisiblePlayerGameStat, VisibleScheduleGame)
+        .join(VisibleScheduleGame, VisibleScheduleGame.id == VisiblePlayerGameStat.schedule_game_id)
+        .where(VisibleScheduleGame.starts_at < target.starts_at)
+        .order_by(VisibleScheduleGame.starts_at.desc())
+    ).all()
+    totals: dict[str, dict[int, list[int]]] = {target.first_team_name: {}, target.second_team_name: {}}
+    for stat, game in rows:
+        target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
+        if target_team is None or stat.field_goals_made is None or stat.field_goals_attempted is None:
+            continue
+        if len(totals[target_team]) < 5:
+            game_totals = totals[target_team].setdefault(game.id, [0, 0])
+            game_totals[0] += stat.field_goals_made
+            game_totals[1] += stat.field_goals_attempted
+    return {
+        team: (len(games), (sum(item[0] for item in games.values()) / sum(item[1] for item in games.values())) * 100)
+        for team, games in totals.items() if games and sum(item[1] for item in games.values()) > 0
     }
 
 

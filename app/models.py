@@ -179,6 +179,8 @@ class VisiblePlayerGameStat(Base):
     minutes: Mapped[str] = mapped_column(String(10))
     points: Mapped[int] = mapped_column(Integer)
     two_point_made: Mapped[int | None] = mapped_column(Integer)
+    field_goals_made: Mapped[int | None] = mapped_column(Integer)
+    field_goals_attempted: Mapped[int | None] = mapped_column(Integer)
     rebounds: Mapped[int] = mapped_column(Integer)
     assists: Mapped[int] = mapped_column(Integer)
     steals: Mapped[int] = mapped_column(Integer)
