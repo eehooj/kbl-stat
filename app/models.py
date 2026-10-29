@@ -136,6 +136,22 @@ class VisibleScheduleGame(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class VisibleGameQuarterScore(Base):
+    """Team quarter scores visibly rendered on a completed game's public summary."""
+    __tablename__ = "visible_game_quarter_scores"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    schedule_game_id: Mapped[int] = mapped_column(ForeignKey("visible_schedule_games.id"), unique=True)
+    record_url: Mapped[str] = mapped_column(String(500), unique=True)
+    first_team_name: Mapped[str] = mapped_column(String(100))
+    second_team_name: Mapped[str] = mapped_column(String(100))
+    first_quarters: Mapped[list[int]] = mapped_column(JSON)
+    second_quarters: Mapped[list[int]] = mapped_column(JSON)
+    first_total: Mapped[int] = mapped_column(Integer)
+    second_total: Mapped[int] = mapped_column(Integer)
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class TeamSeasonStanding(Base):
     """A team standing row exactly as displayed on KBL's team-ranking page."""
     __tablename__ = "team_season_standings"

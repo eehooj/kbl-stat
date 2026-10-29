@@ -75,6 +75,28 @@ class KBLRenderedPageClient:
     def render_match_schedule(self) -> RenderedPage:
         return self.render(MATCH_SCHEDULE_URL)
 
+    def render_current_schedule_record_summaries(self, limit: int) -> list[RenderedPage]:
+        """Open a bounded number of visible schedule-card record links, without forms or APIs."""
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            page.goto(MATCH_SCHEDULE_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            page.wait_for_timeout(1500)
+            button_offset = 2  # The first two exact '기록' labels are navigation, not game-card buttons.
+            available = page.get_by_text("기록", exact=True).count() - button_offset
+            rendered: list[RenderedPage] = []
+            for index in range(min(limit, max(available, 0))):
+                page.get_by_text("기록", exact=True).nth(button_offset + index).click()
+                page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(500)
+                rendered.append(_make_rendered_page(page.url, page.title(), page.locator("body").inner_text()))
+                page.go_back(wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(500)
+            browser.close()
+        return rendered
+
     def render_team_rankings(self) -> RenderedPage:
         return self.render(TEAM_RANKING_URL)
 

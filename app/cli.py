@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
+from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.player_record_collection import collect_visible_player_records
 from app.services.stats_king_collection import collect_visible_stats_king_game
 from app.services.stats_king_recommendation import (
@@ -79,6 +80,17 @@ def collect_player_records() -> None:
     with _session() as session:
         count = collect_visible_player_records(session, pages)
     typer.echo(f"공식 선수 기록 표 {len(pages)}페이지에서 선수 기록 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("collect-game-quarters")
+def collect_game_quarters(
+    limit: int = typer.Option(5, "--limit", min=1, help="현재 일정 화면에서 확인할 완료 경기 수"),
+) -> None:
+    """완료 경기 상세 화면의 팀별 쿼터 점수를 제한된 양만 수집한다."""
+    pages = KBLRenderedPageClient().render_current_schedule_record_summaries(limit)
+    with _session() as session:
+        saved, unlinked = collect_visible_quarter_scores(session, pages)
+    typer.echo(f"공개 경기 상세 {len(pages)}건에서 쿼터 점수 {saved}건을 저장했고, 일정 미연결은 {unlinked}건입니다.")
 
 
 @app.command("collect-season-leaders")
