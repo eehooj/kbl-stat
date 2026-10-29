@@ -1,5 +1,7 @@
-from app.models import VisiblePlayerSeasonStat
-from app.services.stats_king_recommendation import _leader, _same_team
+from datetime import date
+
+from app.models import PlayerAvailability, VisiblePlayerSeasonStat
+from app.services.stats_king_recommendation import _is_unavailable, _leader, _same_team
 
 
 def test_selects_the_highest_per_game_candidate_for_each_metric() -> None:
@@ -17,3 +19,15 @@ def test_selects_the_highest_per_game_candidate_for_each_metric() -> None:
 
 def test_normalizes_spacing_in_visible_team_names() -> None:
     assert _same_team("울산 현대모비스", "울산현대모비스")
+
+
+def test_excludes_a_player_only_for_a_matching_date_and_team() -> None:
+    player = VisiblePlayerSeasonStat(
+        player_name="게이지 프림", team_name="울산 현대모비스", games_played=8,
+        points=164, rebounds=51, assists=20, source_url="https://example.test", observed_at=None,
+    )
+    unavailable = PlayerAvailability(
+        player_name="게이지 프림", team_name="울산 현대모비스", availability_date=date(2026, 10, 29),
+        status="out", source_note="사용자 확인", verified_at=None,
+    )
+    assert _is_unavailable(player, [unavailable])

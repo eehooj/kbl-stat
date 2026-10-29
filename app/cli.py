@@ -1,3 +1,5 @@
+from datetime import date
+
 import typer
 from sqlalchemy import create_engine, select
 
@@ -7,6 +9,7 @@ from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.game_quarter_collection import collect_visible_quarter_scores
+from app.services.player_availability import record_unavailable_player
 from app.services.player_record_collection import collect_visible_player_records
 from app.services.stats_king_collection import collect_visible_stats_king_game
 from app.services.stats_king_recommendation import (
@@ -80,6 +83,22 @@ def collect_player_records() -> None:
     with _session() as session:
         count = collect_visible_player_records(session, pages)
     typer.echo(f"공식 선수 기록 표 {len(pages)}페이지에서 선수 기록 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("record-player-unavailable")
+def record_player_unavailable(
+    player: str = typer.Option(..., "--player"),
+    team: str | None = typer.Option(None, "--team"),
+    on: str = typer.Option(..., "--on", help="YYYY-MM-DD"),
+    source: str = typer.Option(..., "--source", help="예: 공식 구단 공지 또는 사용자 확인"),
+) -> None:
+    """확인된 특정 날짜의 결장 정보만 저장한다."""
+    availability_date = date.fromisoformat(on)
+    with _session() as session:
+        record_unavailable_player(
+            session, player_name=player, team_name=team, availability_date=availability_date, source_note=source,
+        )
+    typer.echo(f"{availability_date.isoformat()} 결장 정보 저장: {player}")
 
 
 @app.command("collect-game-quarters")

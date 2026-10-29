@@ -78,6 +78,12 @@ python -m app.cli collect-daily-picks
 
 `collect-stats-king`은 [StatsKing](https://www.kbl.or.kr/game/challenge/stats) 화면에 표시된 현재 경기 카드의 시각·장소·두 팀의 표시 순서·참여 상태·상대 마감 문구를 저장한다. `collect-player-records`는 공개 [선수기록](https://www.kbl.or.kr/record/player) 표의 모든 페이지에서 선수별 경기 수와 누적 득점·리바운드·어시스트를 수집한다. 팀 엠블럼도 화면상 팀 표현으로 확인해 공식 팀명에 연결한다. `predict-stats-king`은 현재 경기의 두 팀 선수만 대상으로 세 부문의 경기당 평균을 비교한다. 로그인·자동 선수 선택·응모·제출은 필요하지도, 구현하지도 않는다.
 
+확인된 결장 정보는 특정 날짜에만 기록한다. 다음 경기까지 임의로 연장하지 않는다.
+
+```powershell
+python -m app.cli record-player-unavailable --player "게이지 프림" --team "울산 현대모비스" --on 2026-10-29 --source "확인 근거"
+```
+
 ## 확률과 백테스트 원칙
 
 승률·최근 폼·홈/원정·효율·휴식·상대전적은 모두 예측 시각 이전의 공식 경기 기록으로 계산해야 한다. 현재 기준선은 확률 보정 전의 순위 모델이므로 승리 확률과 6개 선택의 전체 적중 확률을 표시하지 않는다. 향후 과거 Weekly 6 문제와 공식 정답을 확보하면, 시점 고정 백테스트 및 확률 보정 후에만 이를 노출한다. 경기 간 독립성 곱셈은 근사치일 뿐이며, 공통 부상·일정·순위 경쟁 영향을 반영하지 못한다.

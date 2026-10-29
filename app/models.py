@@ -1,9 +1,10 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Enum,
     Float,
@@ -115,6 +116,22 @@ class VisiblePlayerSeasonStat(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     __table_args__ = (
         UniqueConstraint("season_id", "player_name", "team_name", name="uq_visible_player_season_stat"),
+    )
+
+
+class PlayerAvailability(Base):
+    """A date-specific, verified player availability fact; never inferred forward."""
+    __tablename__ = "player_availability"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    player_name: Mapped[str] = mapped_column(String(100))
+    team_name: Mapped[str | None] = mapped_column(String(100))
+    availability_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(30))
+    source_note: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        UniqueConstraint("player_name", "team_name", "availability_date", name="uq_player_availability_day"),
     )
 
 
