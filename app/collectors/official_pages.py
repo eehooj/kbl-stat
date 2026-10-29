@@ -48,6 +48,12 @@ class RenderedPlayerRecordPage:
     rows: tuple[VisiblePlayerRecordRow, ...]
 
 
+@dataclass(frozen=True)
+class RenderedGameRecordPage:
+    summary_page: RenderedPage
+    player_page: RenderedPage
+
+
 class KBLRenderedPageClient:
     """Reads visible text only; it never requests KBL's internal API endpoints."""
 
@@ -92,6 +98,32 @@ class KBLRenderedPageClient:
                 page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
                 page.wait_for_timeout(500)
                 rendered.append(_make_rendered_page(page.url, page.title(), page.locator("body").inner_text()))
+                page.go_back(wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(500)
+            browser.close()
+        return rendered
+
+    def render_current_schedule_player_records(self, limit: int) -> list[RenderedGameRecordPage]:
+        """Open a bounded number of public box-score tabs from visible completed schedule cards."""
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            page.goto(MATCH_SCHEDULE_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            page.wait_for_timeout(1500)
+            button_offset = 2
+            available = page.get_by_text("기록", exact=True).count() - button_offset
+            rendered: list[RenderedGameRecordPage] = []
+            for index in range(min(limit, max(available, 0))):
+                page.get_by_text("기록", exact=True).nth(button_offset + index).click()
+                page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(500)
+                summary = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
+                page.get_by_text("경기기록", exact=True).click()
+                page.wait_for_timeout(500)
+                player_page = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
+                rendered.append(RenderedGameRecordPage(summary_page=summary, player_page=player_page))
                 page.go_back(wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
                 page.wait_for_timeout(500)
             browser.close()

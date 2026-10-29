@@ -26,6 +26,7 @@ def upgrade() -> None:
             "visible_player_season_stats",
             "visible_game_quarter_scores",
             "player_availability",
+            "visible_player_game_stats",
             "weekly6_visible_fixtures",
             "weekly6_schedule_links",
             "daily_picks_schedule_links",

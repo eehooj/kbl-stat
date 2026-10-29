@@ -10,6 +10,7 @@ from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.player_availability import record_unavailable_player
+from app.services.player_game_stat_collection import collect_visible_player_game_stats
 from app.services.player_record_collection import collect_visible_player_records
 from app.services.stats_king_collection import collect_visible_stats_king_game
 from app.services.stats_king_recommendation import (
@@ -110,6 +111,17 @@ def collect_game_quarters(
     with _session() as session:
         saved, unlinked = collect_visible_quarter_scores(session, pages)
     typer.echo(f"공개 경기 상세 {len(pages)}건에서 쿼터 점수 {saved}건을 저장했고, 일정 미연결은 {unlinked}건입니다.")
+
+
+@app.command("collect-game-player-stats")
+def collect_game_player_stats(
+    limit: int = typer.Option(5, "--limit", min=1, help="현재 일정 화면에서 확인할 완료 경기 수"),
+) -> None:
+    """완료 경기의 공개 선수 박스스코어를 제한된 양만 수집한다."""
+    pages = KBLRenderedPageClient().render_current_schedule_player_records(limit)
+    with _session() as session:
+        saved, unlinked = collect_visible_player_game_stats(session, pages)
+    typer.echo(f"공개 경기기록 {len(pages)}건에서 선수 박스스코어 {saved}건을 저장했고, 일정 미연결은 {unlinked}건입니다.")
 
 
 @app.command("collect-season-leaders")

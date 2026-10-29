@@ -169,6 +169,28 @@ class VisibleGameQuarterScore(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class VisiblePlayerGameStat(Base):
+    """A player's box-score line visibly rendered on a public completed-game record page."""
+    __tablename__ = "visible_player_game_stats"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    schedule_game_id: Mapped[int] = mapped_column(ForeignKey("visible_schedule_games.id"))
+    team_name: Mapped[str] = mapped_column(String(100))
+    player_name: Mapped[str] = mapped_column(String(100))
+    minutes: Mapped[str] = mapped_column(String(10))
+    points: Mapped[int] = mapped_column(Integer)
+    rebounds: Mapped[int] = mapped_column(Integer)
+    assists: Mapped[int] = mapped_column(Integer)
+    steals: Mapped[int] = mapped_column(Integer)
+    blocks: Mapped[int] = mapped_column(Integer)
+    turnovers: Mapped[int] = mapped_column(Integer)
+    fouls: Mapped[int] = mapped_column(Integer)
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        UniqueConstraint("schedule_game_id", "team_name", "player_name", name="uq_visible_player_game_stat"),
+    )
+
+
 class TeamSeasonStanding(Base):
     """A team standing row exactly as displayed on KBL's team-ranking page."""
     __tablename__ = "team_season_standings"
