@@ -24,6 +24,7 @@ def upgrade() -> None:
         if table.name not in {
             "season_player_stats", "visible_schedule_games", "team_season_standings", "team_form_snapshots",
             "weekly6_visible_fixtures",
+            "weekly6_schedule_links",
         }
     ]
     Base.metadata.create_all(bind, tables=tables)

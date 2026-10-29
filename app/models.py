@@ -247,6 +247,16 @@ class Weekly6VisibleFixture(Base):
     __table_args__ = (UniqueConstraint("round_id", "ordinal", name="uq_weekly6_visible_round_ordinal"),)
 
 
+class Weekly6ScheduleLink(Base):
+    """Evidence-backed association between a visible Weekly 6 candidate and a schedule card."""
+    __tablename__ = "weekly6_schedule_links"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    weekly6_fixture_id: Mapped[int] = mapped_column(ForeignKey("weekly6_visible_fixtures.id"), unique=True)
+    schedule_game_id: Mapped[int] = mapped_column(ForeignKey("visible_schedule_games.id"), unique=True)
+    matching_method: Mapped[str] = mapped_column(String(100))
+    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class CollectionLog(Base):
     __tablename__ = "collection_logs"
     id: Mapped[int] = mapped_column(primary_key=True)

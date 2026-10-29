@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.collectors.official_pages import RenderedPage
 from app.models import Weekly6Round, Weekly6VisibleFixture
 from app.services.visible_record_collection import collect_rendered_page
+from app.services.weekly6_schedule_linking import link_weekly6_schedule_games
 
 KST = ZoneInfo("Asia/Seoul")
 PICK = re.compile(r"^Pick\s+(?P<ordinal>\d+)$")
@@ -76,7 +77,7 @@ def collect_weekly6_page(session, page: RenderedPage) -> tuple[Weekly6Visibility
     visibility = inspect_weekly6_page(page)
     if visibility is Weekly6Visibility.BODY_NOT_VISIBLE:
         collect_rendered_page(session, page, "Weekly 6 본문 미표시; 문제 미등록 또는 렌더링 실패를 구분할 수 없어 문제를 저장하지 않음")
-        return visibility, 0
+        return visibility, 0, 0
     round_data = parse_visible_weekly6(page)
     collect_rendered_page(session, page, f"visible Weekly 6 candidates={len(round_data.fixtures)}", commit=False)
     round_ = session.scalar(select(Weekly6Round).where(Weekly6Round.week_label == round_data.week_label))
@@ -107,4 +108,5 @@ def collect_weekly6_page(session, page: RenderedPage) -> tuple[Weekly6Visibility
             for name, value in fields.items():
                 setattr(stored, name, value)
     session.commit()
-    return visibility, len(round_data.fixtures)
+    linked = link_weekly6_schedule_games(session)
+    return visibility, len(round_data.fixtures), linked
