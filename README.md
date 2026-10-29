@@ -53,6 +53,7 @@ python -m app.cli collect-schedule
 python -m app.cli collect-season-schedule --season 2026-2027
 python -m app.cli collect-team-rankings
 python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+09:00
+python -m app.cli collect-daily-picks
 ```
 
 이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
@@ -66,6 +67,8 @@ python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+
 `collect-weekly6`은 Weekly 6 본문에 표시된 Pick 번호, 날짜·시각, 장소, 두 팀의 표기 순서와 공식 선택 수를 저장한다. 홈/원정 라벨이 화면에 없으므로 팀 순서를 홈/원정으로 해석하지 않는다. 본문이 보이지 않을 때는 문제 미등록으로 단정하지 않고 원문·수집 이력에 `본문 미표시`로 남기며, 문제·예측·가상 결과를 저장하지 않는다.
 
 `compute-team-form`은 수집된 완료 경기만 사용해 시즌 승패, 최근 5/10경기 승패, 평균 득점·실점, 휴식일을 계산한다. `--as-of`와 같거나 이후에 시작한 경기는 계산에서 제외하므로 미래 결과가 섞이지 않는다. 일정 카드에 홈/원정 라벨이 없어 홈/원정 파생 지표는 계산하지 않는다.
+
+`collect-daily-picks`은 [Daily Picks](https://www.kbl.or.kr/game/challenge/daily-picks) 화면의 날짜·시각·장소·질문·선택지를 저장한다. 화면에 절대 마감 시각이나 공식 문제 ID가 표시되지 않으면 저장하지 않는다.
 
 ## 확률과 백테스트 원칙
 

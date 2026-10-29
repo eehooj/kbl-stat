@@ -5,6 +5,7 @@ from app.collectors.official_pages import KBL_BASE_URL, KBLRenderedPageClient
 from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
+from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
 from app.services.visible_schedule_collection import (
@@ -34,11 +35,21 @@ def collect_weekly6() -> None:
     """공식 Weekly 6 화면에 렌더링된 텍스트만 보존한다."""
     page = KBLRenderedPageClient().render(f"{KBL_BASE_URL}/game/challenge/weekly6")
     with _session() as session:
-        visibility, count = collect_weekly6_page(session, page)
+        result = collect_weekly6_page(session, page)
+    visibility, count, linked = result
     if visibility is Weekly6Visibility.BODY_NOT_VISIBLE:
         typer.echo("공식 Weekly 6 화면 본문이 표시되지 않았습니다. 문제 미등록과 렌더링 실패를 구분할 수 없어 예측을 만들지 않았습니다.")
         return
-    typer.echo(f"공식 Weekly 6 화면에서 후보 경기 {count}건을 수집·갱신했습니다: {page.url}")
+    typer.echo(f"공식 Weekly 6 화면에서 후보 경기 {count}건을 수집·갱신했고 일정 {linked}건을 연결했습니다: {page.url}")
+
+
+@app.command("collect-daily-picks")
+def collect_daily_picks() -> None:
+    """공식 Daily Picks 화면에 표시된 문제와 선택지만 수집한다."""
+    page = KBLRenderedPageClient().render_daily_picks()
+    with _session() as session:
+        count = collect_visible_daily_picks(session, page)
+    typer.echo(f"공식 Daily Picks 화면에 표시된 문제 {count}건을 수집·갱신했습니다.")
 
 
 @app.command("collect-season-leaders")
