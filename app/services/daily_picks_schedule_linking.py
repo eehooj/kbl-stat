@@ -15,6 +15,7 @@ from app.models import (
 
 MATCHING_METHOD = "same-start-venue-two-option-team-label-containment-v1"
 METRICS = {
+    "2점슛 성공": "two_point_made",
     "득점": "points",
     "리바운드": "rebounds",
     "어시스트": "assists",

@@ -8,6 +8,10 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
+from app.services.daily_picks_recommendation import (
+    recommend_daily_picks,
+    render_daily_picks_recommendations,
+)
 from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.player_availability import record_unavailable_player
 from app.services.player_game_stat_collection import collect_visible_player_game_stats
@@ -61,6 +65,13 @@ def collect_daily_picks() -> None:
     with _session() as session:
         count, linked = collect_visible_daily_picks(session, page)
     typer.echo(f"공식 Daily Picks 화면 문제 {count}건을 수집·갱신했고 일정 {linked}건을 연결했습니다.")
+
+
+@app.command("predict-daily-picks")
+def predict_daily_picks() -> None:
+    """대상 경기 이전 공개 팀 박스스코어로 Daily Picks를 추천한다."""
+    with _session() as session:
+        typer.echo(render_daily_picks_recommendations(recommend_daily_picks(session)))
 
 
 @app.command("collect-stats-king")
@@ -191,7 +202,7 @@ def predict_stats_king() -> None:
 @app.command("predict-all")
 def predict_all() -> None:
     predict_stats_king()
-    typer.echo("[Daily Picks] 확인된 문제 데이터가 없습니다.")
+    predict_daily_picks()
     predict_weekly6()
 
 

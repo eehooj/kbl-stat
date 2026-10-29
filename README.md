@@ -59,6 +59,7 @@ python -m app.cli collect-stats-king
 python -m app.cli collect-player-records
 python -m app.cli predict-stats-king
 python -m app.cli collect-daily-picks
+python -m app.cli predict-daily-picks
 ```
 
 이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
@@ -78,6 +79,8 @@ python -m app.cli collect-daily-picks
 `compute-team-form`은 수집된 완료 경기만 사용해 시즌 승패, 최근 5/10경기 승패, 평균 득점·실점, 휴식일을 계산한다. `--as-of`와 같거나 이후에 시작한 경기는 계산에서 제외하므로 미래 결과가 섞이지 않는다. 일정 카드에 홈/원정 라벨이 없어 홈/원정 파생 지표는 계산하지 않는다.
 
 `collect-daily-picks`은 [Daily Picks](https://www.kbl.or.kr/game/challenge/daily-picks) 화면의 날짜·시각·장소·질문·선택지를 저장한다. 수집된 일정 카드 중 날짜·시각·장소가 같고 양 팀 이름이 선택지에서 함께 확인되는 카드가 정확히 하나일 때만 연결한다. 질문 문구에서는 `득점`, `리바운드` 같은 지표와 `1~4쿼터` 표기만 그대로 분류하며, 화면에 절대 마감 시각이나 공식 문제 ID가 표시되지 않으면 저장하지 않는다.
+
+`predict-daily-picks`은 대상 경기보다 이전에 끝난 공개 선수 박스스코어를 팀 경기 단위로 합산한다. 스틸·2점슛 성공·턴오버·블록슛·개인 파울 문제는 양 팀이 각각 최소 3경기, 최대 최근 5경기 기록을 확보했을 때만 경기당 평균을 비교해 추천한다. 데이터가 부족하거나 평균이 같으면 추천을 보류한다.
 
 `collect-stats-king`은 [StatsKing](https://www.kbl.or.kr/game/challenge/stats) 화면에 표시된 현재 경기 카드의 시각·장소·두 팀의 표시 순서·참여 상태·상대 마감 문구를 저장한다. `collect-player-records`는 공개 [선수기록](https://www.kbl.or.kr/record/player) 표의 모든 페이지에서 선수별 경기 수와 누적 득점·리바운드·어시스트를 수집한다. 팀 엠블럼도 화면상 팀 표현으로 확인해 공식 팀명에 연결한다. `predict-stats-king`은 현재 경기의 두 팀 선수만 대상으로 세 부문의 경기당 평균을 비교한다. 대상 경기 이전의 공개 박스스코어가 선수별 3경기 이상 있을 때는 최근 최대 5경기 평균 60%와 시즌 평균 40%를 함께 사용하며, 데이터가 부족하면 시즌 평균만 사용한다. 로그인·자동 선수 선택·응모·제출은 필요하지도, 구현하지도 않는다.
 

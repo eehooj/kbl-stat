@@ -17,6 +17,9 @@ def test_classifies_only_metric_and_quarter_visible_in_question_text() -> None:
     assert classify_visible_daily_pick("어느 팀이 승리할까요?") == {
         "metric": None, "quarter": None, "classification_status": "unclassified",
     }
+    assert classify_visible_daily_pick("2점슛 성공 개수가 더 많은 팀은 어디일까요?") == {
+        "metric": "two_point_made", "quarter": None, "classification_status": "classified",
+    }
 
 
 def test_matches_two_team_options_without_using_a_draw_option() -> None:

@@ -22,6 +22,7 @@ class VisiblePlayerBoxScore:
     player_name: str
     minutes: str
     points: int
+    two_point_made: int
     rebounds: int
     assists: int
     steals: int
@@ -64,7 +65,8 @@ def collect_visible_player_game_stats(session: Session, pages: list[RenderedGame
                 VisiblePlayerGameStat.player_name == row.player_name,
             ))
             fields = {
-                "minutes": row.minutes, "points": row.points, "rebounds": row.rebounds, "assists": row.assists,
+                "minutes": row.minutes, "points": row.points, "two_point_made": row.two_point_made,
+                "rebounds": row.rebounds, "assists": row.assists,
                 "steals": row.steals, "blocks": row.blocks, "turnovers": row.turnovers, "fouls": row.fouls,
                 "source_url": rendered.player_page.url, "observed_at": rendered.player_page.fetched_at,
             }
@@ -100,6 +102,7 @@ def _parse_section(lines: list[str], team_name: str) -> list[VisiblePlayerBoxSco
         try:
             rows.append(VisiblePlayerBoxScore(
                 team_name=team_name, player_name=player_name, minutes=values[0], points=int(values[1]),
+                two_point_made=int(values[2]),
                 rebounds=int(values[16]), assists=int(values[17]), steals=int(values[18]), blocks=int(values[19]),
                 turnovers=int(values[25]), fouls=int(values[26]),
             ))
