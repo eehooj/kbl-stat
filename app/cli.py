@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
+from app.services.stats_king_collection import collect_visible_stats_king_game
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
 from app.services.visible_schedule_collection import (
@@ -50,6 +51,21 @@ def collect_daily_picks() -> None:
     with _session() as session:
         count, linked = collect_visible_daily_picks(session, page)
     typer.echo(f"공식 Daily Picks 화면 문제 {count}건을 수집·갱신했고 일정 {linked}건을 연결했습니다.")
+
+
+@app.command("collect-stats-king")
+def collect_stats_king() -> None:
+    """공식 StatsKing 화면에 보이는 경기 카드만 수집한다."""
+    page = KBLRenderedPageClient().render_stats_king()
+    with _session() as session:
+        game = collect_visible_stats_king_game(session, page)
+    if game is None:
+        typer.echo("공식 StatsKing 화면에 완전한 경기 카드가 표시되지 않았습니다. 문제를 만들지 않았습니다.")
+        return
+    typer.echo(
+        f"공식 StatsKing 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}. "
+        "선수 선택지·기록 항목이 화면에 표시되지 않아 문제·예측은 만들지 않았습니다."
+    )
 
 
 @app.command("collect-season-leaders")

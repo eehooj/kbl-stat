@@ -26,6 +26,7 @@ def upgrade() -> None:
             "weekly6_visible_fixtures",
             "weekly6_schedule_links",
             "daily_picks_schedule_links",
+            "stats_king_visible_games",
         }
     ]
     Base.metadata.create_all(bind, tables=tables)

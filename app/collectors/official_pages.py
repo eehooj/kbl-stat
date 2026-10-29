@@ -14,6 +14,7 @@ SEASON_LEADER_URL = f"{KBL_BASE_URL}/record/seasonLeader"
 MATCH_SCHEDULE_URL = f"{KBL_BASE_URL}/match/schedule"
 TEAM_RANKING_URL = f"{KBL_BASE_URL}/match/team-ranking"
 DAILY_PICKS_URL = f"{KBL_BASE_URL}/game/challenge/daily-picks"
+STATS_KING_URL = f"{KBL_BASE_URL}/game/challenge/stats"
 SCHEDULE_MONTH_HEADER = re.compile(r"(?m)^(?P<year>20\d{2})\s*\.\s*(?P<month>\d{1,2})$")
 
 
@@ -62,6 +63,9 @@ class KBLRenderedPageClient:
 
     def render_daily_picks(self) -> RenderedPage:
         return self.render(DAILY_PICKS_URL)
+
+    def render_stats_king(self) -> RenderedPage:
+        return self.render(STATS_KING_URL)
 
     def render_schedule_season(self, season: str) -> list[RenderedPage]:
         """Navigate KBL's visible schedule calendar for October through May."""

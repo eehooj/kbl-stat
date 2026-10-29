@@ -204,6 +204,21 @@ class ChallengeResult(Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class StatsKingVisibleGame(Base):
+    """A StatsKing game card exactly as rendered; team order is not home/away."""
+    __tablename__ = "stats_king_visible_games"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    observed_key: Mapped[str] = mapped_column(String(64), unique=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    venue: Mapped[str] = mapped_column(String(150))
+    first_team_name: Mapped[str] = mapped_column(String(100))
+    second_team_name: Mapped[str] = mapped_column(String(100))
+    participation_status: Mapped[str] = mapped_column(String(50))
+    deadline_text: Mapped[str | None] = mapped_column(String(150))
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Weekly6Round(Base):
     __tablename__ = "weekly6_rounds"
     id: Mapped[int] = mapped_column(primary_key=True)
