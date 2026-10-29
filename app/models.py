@@ -257,6 +257,16 @@ class Weekly6ScheduleLink(Base):
     linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class DailyPicksScheduleLink(Base):
+    """Evidence-backed association between one Daily Picks question and its schedule card."""
+    __tablename__ = "daily_picks_schedule_links"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("challenge_questions.id"), unique=True)
+    schedule_game_id: Mapped[int] = mapped_column(ForeignKey("visible_schedule_games.id"))
+    matching_method: Mapped[str] = mapped_column(String(100))
+    linked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class CollectionLog(Base):
     __tablename__ = "collection_logs"
     id: Mapped[int] = mapped_column(primary_key=True)

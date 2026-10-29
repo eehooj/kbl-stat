@@ -48,8 +48,8 @@ def collect_daily_picks() -> None:
     """공식 Daily Picks 화면에 표시된 문제와 선택지만 수집한다."""
     page = KBLRenderedPageClient().render_daily_picks()
     with _session() as session:
-        count = collect_visible_daily_picks(session, page)
-    typer.echo(f"공식 Daily Picks 화면에 표시된 문제 {count}건을 수집·갱신했습니다.")
+        count, linked = collect_visible_daily_picks(session, page)
+    typer.echo(f"공식 Daily Picks 화면 문제 {count}건을 수집·갱신했고 일정 {linked}건을 연결했습니다.")
 
 
 @app.command("collect-season-leaders")

@@ -25,6 +25,7 @@ def upgrade() -> None:
             "season_player_stats", "visible_schedule_games", "team_season_standings", "team_form_snapshots",
             "weekly6_visible_fixtures",
             "weekly6_schedule_links",
+            "daily_picks_schedule_links",
         }
     ]
     Base.metadata.create_all(bind, tables=tables)

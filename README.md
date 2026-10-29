@@ -68,7 +68,7 @@ python -m app.cli collect-daily-picks
 
 `compute-team-form`은 수집된 완료 경기만 사용해 시즌 승패, 최근 5/10경기 승패, 평균 득점·실점, 휴식일을 계산한다. `--as-of`와 같거나 이후에 시작한 경기는 계산에서 제외하므로 미래 결과가 섞이지 않는다. 일정 카드에 홈/원정 라벨이 없어 홈/원정 파생 지표는 계산하지 않는다.
 
-`collect-daily-picks`은 [Daily Picks](https://www.kbl.or.kr/game/challenge/daily-picks) 화면의 날짜·시각·장소·질문·선택지를 저장한다. 화면에 절대 마감 시각이나 공식 문제 ID가 표시되지 않으면 저장하지 않는다.
+`collect-daily-picks`은 [Daily Picks](https://www.kbl.or.kr/game/challenge/daily-picks) 화면의 날짜·시각·장소·질문·선택지를 저장한다. 수집된 일정 카드 중 날짜·시각·장소가 같고 양 팀 이름이 선택지에서 함께 확인되는 카드가 정확히 하나일 때만 연결한다. 질문 문구에서는 `득점`, `리바운드` 같은 지표와 `1~4쿼터` 표기만 그대로 분류하며, 화면에 절대 마감 시각이나 공식 문제 ID가 표시되지 않으면 저장하지 않는다.
 
 ## 확률과 백테스트 원칙
 

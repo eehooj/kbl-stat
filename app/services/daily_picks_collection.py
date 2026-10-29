@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.collectors.official_pages import RenderedPage
 from app.models import ChallengeOption, ChallengeQuestion, ChallengeType
+from app.services.daily_picks_schedule_linking import link_daily_picks_schedule_games
 from app.services.visible_record_collection import collect_rendered_page
 
 KST = ZoneInfo("Asia/Seoul")
@@ -53,7 +54,7 @@ def parse_visible_daily_picks(page: RenderedPage) -> list[VisibleDailyPick]:
     return picks
 
 
-def collect_visible_daily_picks(session: Session, page: RenderedPage) -> int:
+def collect_visible_daily_picks(session: Session, page: RenderedPage) -> tuple[int, int]:
     picks = parse_visible_daily_picks(page)
     collect_rendered_page(session, page, f"visible Daily Picks questions={len(picks)}", commit=False)
     for pick in picks:
@@ -84,4 +85,5 @@ def collect_visible_daily_picks(session: Session, page: RenderedPage) -> int:
                     payload={"ordinal": option_ordinal},
                 ))
     session.commit()
-    return len(picks)
+    linked = link_daily_picks_schedule_games(session)
+    return len(picks), linked
