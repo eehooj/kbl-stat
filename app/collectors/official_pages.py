@@ -116,6 +116,16 @@ class KBLRenderedPageClient:
             available = page.get_by_text("기록", exact=True).count() - button_offset
             rendered: list[RenderedGameRecordPage] = []
             for index in range(min(limit, max(available, 0))):
+                # Opening "경기기록" changes the record page in place.  Going back once
+                # therefore returns to the summary tab, not the schedule.  Start every
+                # iteration from the public schedule so every requested game is visited.
+                if index:
+                    page.goto(
+                        MATCH_SCHEDULE_URL,
+                        wait_until="domcontentloaded",
+                        timeout=int(self.settings.kbl_http_timeout_seconds * 1000),
+                    )
+                    page.wait_for_timeout(700)
                 page.get_by_text("기록", exact=True).nth(button_offset + index).click()
                 page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
                 page.wait_for_timeout(500)
@@ -124,8 +134,6 @@ class KBLRenderedPageClient:
                 page.wait_for_timeout(500)
                 player_page = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
                 rendered.append(RenderedGameRecordPage(summary_page=summary, player_page=player_page))
-                page.go_back(wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
-                page.wait_for_timeout(500)
             browser.close()
         return rendered
 
