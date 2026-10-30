@@ -14,7 +14,10 @@ from app.services.daily_picks_recommendation import (
 )
 from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.player_availability import record_unavailable_player
-from app.services.player_game_stat_collection import collect_visible_player_game_stats
+from app.services.player_game_stat_collection import (
+    backfill_visible_dunk_makes,
+    collect_visible_player_game_stats,
+)
 from app.services.player_record_collection import collect_visible_player_records
 from app.services.stats_king_collection import collect_visible_stats_king_game
 from app.services.stats_king_recommendation import (
@@ -133,6 +136,14 @@ def collect_game_player_stats(
     with _session() as session:
         saved, unlinked = collect_visible_player_game_stats(session, pages)
     typer.echo(f"공개 경기기록 {len(pages)}건에서 선수 박스스코어 {saved}건을 저장했고, 일정 미연결은 {unlinked}건입니다.")
+
+
+@app.command("backfill-game-dunks")
+def backfill_game_dunks() -> None:
+    """보관된 공식 선수 박스스코어에서 덩크 성공 값을 다시 채운다."""
+    with _session() as session:
+        updated = backfill_visible_dunk_makes(session)
+    typer.echo(f"보관된 공식 박스스코어에서 덩크 성공 {updated}행을 갱신했습니다.")
 
 
 @app.command("collect-season-leaders")

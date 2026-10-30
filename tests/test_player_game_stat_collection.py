@@ -25,6 +25,6 @@ No. 선수명 Min PTS 2PM 2PA 2P% 3PM 3PA 3P% FGM FGA FG% FTM FTA FT% OREB DREB 
 """,
     )
     rows = parse_visible_player_box_scores(page, "부산 KCC", "창원 LG")
-    assert [(row.player_name, row.team_name, row.points, row.assists) for row in rows] == [
-        ("선수 A", "부산 KCC", 4, 7), ("선수 B", "창원 LG", 25, 2),
+    assert [(row.player_name, row.team_name, row.points, row.assists, row.dunk_made) for row in rows] == [
+        ("선수 A", "부산 KCC", 4, 7, 0), ("선수 B", "창원 LG", 25, 2, 0),
     ]

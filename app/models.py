@@ -185,6 +185,7 @@ class VisiblePlayerGameStat(Base):
     assists: Mapped[int] = mapped_column(Integer)
     steals: Mapped[int] = mapped_column(Integer)
     blocks: Mapped[int] = mapped_column(Integer)
+    dunk_made: Mapped[int | None] = mapped_column(Integer)
     turnovers: Mapped[int] = mapped_column(Integer)
     fouls: Mapped[int] = mapped_column(Integer)
     source_url: Mapped[str] = mapped_column(String(500))

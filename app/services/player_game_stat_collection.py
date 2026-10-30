@@ -1,4 +1,5 @@
 """Collect visible player box-score lines from public completed-game record tabs."""
+import json
 import re
 from dataclasses import dataclass
 
@@ -6,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.collectors.official_pages import RenderedGameRecordPage, RenderedPage
-from app.models import VisiblePlayerGameStat
+from app.models import RawSourceDocument, VisiblePlayerGameStat
 from app.services.game_quarter_collection import (
     _matching_schedule_game,
     parse_visible_quarter_score,
@@ -29,6 +30,7 @@ class VisiblePlayerBoxScore:
     assists: int
     steals: int
     blocks: int
+    dunk_made: int
     turnovers: int
     fouls: int
 
@@ -70,7 +72,8 @@ def collect_visible_player_game_stats(session: Session, pages: list[RenderedGame
                 "minutes": row.minutes, "points": row.points, "two_point_made": row.two_point_made,
                 "field_goals_made": row.field_goals_made, "field_goals_attempted": row.field_goals_attempted,
                 "rebounds": row.rebounds, "assists": row.assists,
-                "steals": row.steals, "blocks": row.blocks, "turnovers": row.turnovers, "fouls": row.fouls,
+                "steals": row.steals, "blocks": row.blocks, "dunk_made": row.dunk_made,
+                "turnovers": row.turnovers, "fouls": row.fouls,
                 "source_url": rendered.player_page.url, "observed_at": rendered.player_page.fetched_at,
             }
             if stored is None:
@@ -83,6 +86,39 @@ def collect_visible_player_game_stats(session: Session, pages: list[RenderedGame
             saved += 1
     session.commit()
     return saved, unlinked
+
+
+def backfill_visible_dunk_makes(session: Session) -> int:
+    """Reparse already preserved public box-score pages after adding the DK field."""
+    updated = 0
+    documents = session.scalars(select(RawSourceDocument).where(
+        RawSourceDocument.source_url.contains("/match/record/"),
+    )).all()
+    for document in documents:
+        try:
+            payload = json.loads(document.body)
+            visible_text = payload["visible_text"]
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(visible_text, str) or "홈 선수기록" not in visible_text:
+            continue
+        page = RenderedPage(
+            url=document.source_url,
+            fetched_at=document.fetched_at,
+            title=str(payload.get("title", "")),
+            visible_text=visible_text,
+            content_hash=document.content_hash,
+        )
+        for row in parse_visible_player_box_scores(page, "홈", "원정"):
+            stored = session.scalar(select(VisiblePlayerGameStat).where(
+                VisiblePlayerGameStat.source_url == document.source_url,
+                VisiblePlayerGameStat.player_name == row.player_name,
+            ))
+            if stored is not None:
+                stored.dunk_made = row.dunk_made
+                updated += 1
+    session.commit()
+    return updated
 
 
 def _parse_section(lines: list[str], team_name: str) -> list[VisiblePlayerBoxScore]:
@@ -108,7 +144,7 @@ def _parse_section(lines: list[str], team_name: str) -> list[VisiblePlayerBoxSco
                 two_point_made=int(values[2]),
                 field_goals_made=int(values[8]), field_goals_attempted=int(values[9]),
                 rebounds=int(values[16]), assists=int(values[17]), steals=int(values[18]), blocks=int(values[19]),
-                turnovers=int(values[25]), fouls=int(values[26]),
+                dunk_made=int(values[21]), turnovers=int(values[25]), fouls=int(values[26]),
             ))
         except ValueError as error:
             raise ValueError("경기기록 선수 행의 기본 지표가 숫자가 아닙니다") from error

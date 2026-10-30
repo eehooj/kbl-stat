@@ -20,6 +20,7 @@ METRIC_LABELS = {
     "two_point_made": "2점슛 성공",
     "turnovers": "턴오버",
     "blocks": "블록슛",
+    "dunk_made": "덩크슛 성공",
     "fouls": "개인 파울",
 }
 
