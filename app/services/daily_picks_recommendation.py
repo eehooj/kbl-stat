@@ -253,7 +253,9 @@ def _recent_team_averages(
     for stat, game in rows:
         target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
         value = getattr(stat, metric)
-        if target_team is not None and value is not None and _has_room(totals[target_team], game_limit):
+        if target_team is not None and value is not None and (
+            game.id in totals[target_team] or _has_room(totals[target_team], game_limit)
+        ):
             totals[target_team][game.id] = totals[target_team].get(game.id, 0) + value
     return {
         team: (len(games), sum(games.values()) / len(games))
@@ -294,7 +296,7 @@ def _recent_shooting_percentages(
         attempted = getattr(stat, attempted_field)
         if target_team is None or made is None or attempted is None:
             continue
-        if _has_room(totals[target_team], game_limit):
+        if game.id in totals[target_team] or _has_room(totals[target_team], game_limit):
             game_totals = totals[target_team].setdefault(game.id, [0, 0])
             game_totals[0] += made
             game_totals[1] += attempted
@@ -332,6 +334,7 @@ def _has_room(items: Sized, game_limit: int | None) -> bool:
 def _opponent_adjusted_averages(
     session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None,
 ) -> dict[str, tuple[int, float]]:
+    made_attempted = None
     if metric in {"bench_points", "second_chance_points", "good_defense", "scoring_lead_seconds"}:
         rows = session.execute(
             select(VisibleGameSpecialStat, VisibleScheduleGame)
@@ -384,6 +387,8 @@ def _opponent_adjusted_averages(
     target_teams = (target.first_team_name, target.second_team_name)
     production: dict[str, list[float]] = {team: [] for team in target_teams}
     allowed: dict[str, list[float]] = {team: [] for team in target_teams}
+    production_shots = {team: [0.0, 0.0] for team in target_teams}
+    allowed_shots = {team: [0.0, 0.0] for team in target_teams}
     for team in target_teams:
         for game_id, game in games.items():
             participants = (game.first_team_name, game.second_team_name)
@@ -397,6 +402,10 @@ def _opponent_adjusted_averages(
                 continue
             production[team].append(game_values[game_id][own_key])
             allowed[team].append(game_values[game_id][opponent_key])
+            if made_attempted:
+                for index in (0, 1):
+                    production_shots[team][index] += raw[game_id][own_key][index]
+                    allowed_shots[team][index] += raw[game_id][opponent_key][index]
             if not _has_room(production[team], game_limit):
                 break
     output: dict[str, tuple[int, float]] = {}
@@ -405,6 +414,10 @@ def _opponent_adjusted_averages(
             count = min(len(production[team]), len(allowed[opponent]))
             expected = ((sum(production[team]) / len(production[team])) +
                         (sum(allowed[opponent]) / len(allowed[opponent]))) / 2
+            if made_attempted:
+                own = production_shots[team]
+                conceded = allowed_shots[opponent]
+                expected = (own[0] / own[1] + conceded[0] / conceded[1]) * 50
             output[team] = (count, expected)
     return output
 
