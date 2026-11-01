@@ -63,6 +63,14 @@ class DailyPicksLookbackEvaluation:
     accuracy: float | None
 
 
+@dataclass(frozen=True)
+class DailyPicksStrategyEvaluation:
+    strategy: str
+    evaluable: int
+    correct: int
+    accuracy: float | None
+
+
 def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
     questions = list(session.scalars(select(ChallengeQuestion).where(
         ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS,
@@ -123,6 +131,49 @@ def render_daily_picks_lookback_evaluations(items: list[DailyPicksLookbackEvalua
     return "\n".join(lines)
 
 
+def evaluate_daily_picks_strategies(session: Session) -> list[DailyPicksStrategyEvaluation]:
+    evaluations: list[DailyPicksStrategyEvaluation] = []
+    for strategy, opponent_adjusted in (("팀 자체 평균", False), ("상대 허용 50% 결합", True)):
+        result = _backtest_daily_picks_strategy(session, opponent_adjusted)
+        evaluations.append(DailyPicksStrategyEvaluation(
+            strategy=strategy, evaluable=result.evaluable, correct=result.correct, accuracy=result.accuracy,
+        ))
+    return evaluations
+
+
+def render_daily_picks_strategy_evaluations(items: list[DailyPicksStrategyEvaluation]) -> str:
+    lines = ["KBL DAILY PICKS STRATEGY EVALUATION"]
+    for item in items:
+        accuracy = "평가 불가" if item.accuracy is None else f"{item.accuracy * 100:.1f}%"
+        lines.append(f"{item.strategy}: 평가 {item.evaluable}건 / 적중 {item.correct}건 / {accuracy}")
+    return "\n".join(lines)
+
+
+def _backtest_daily_picks_strategy(session: Session, opponent_adjusted: bool) -> DailyPicksBacktest:
+    rows = session.execute(
+        select(ChallengeQuestion, ChallengeResult)
+        .join(ChallengeResult, ChallengeResult.question_id == ChallengeQuestion.id)
+        .where(ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS)
+        .order_by(ChallengeQuestion.question_date)
+    ).all()
+    correct = evaluable = 0
+    skipped: dict[str, int] = {}
+    for question, result in rows:
+        recommendation = _recommend_question(session, question, opponent_adjusted=opponent_adjusted)
+        answer = result.official_answer if isinstance(result.official_answer, dict) else {}
+        answer_label = answer.get("label")
+        if recommendation.recommended_team is None or not isinstance(answer_label, str):
+            skipped[recommendation.status] = skipped.get(recommendation.status, 0) + 1
+            continue
+        evaluable += 1
+        if _same_team(recommendation.recommended_team, answer_label):
+            correct += 1
+    return DailyPicksBacktest(
+        answered=len(rows), evaluable=evaluable, correct=correct,
+        accuracy=(correct / evaluable) if evaluable else None, skipped=skipped,
+    )
+
+
 def render_daily_picks_backtest(result: DailyPicksBacktest) -> str:
     accuracy = "평가 불가" if result.accuracy is None else f"{result.accuracy * 100:.1f}%"
     lines = [
@@ -139,6 +190,7 @@ def render_daily_picks_backtest(result: DailyPicksBacktest) -> str:
 
 def _recommend_question(
     session: Session, question: ChallengeQuestion, game_limit: int | None = 5,
+    opponent_adjusted: bool = False,
 ) -> DailyPicksRecommendation:
     link = session.scalar(select(DailyPicksScheduleLink).where(
         DailyPicksScheduleLink.question_id == question.id,
@@ -149,7 +201,9 @@ def _recommend_question(
     metric = classify_visible_daily_pick(question.text or "").get("metric")
     if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
         return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인")
-    if metric == "field_goal_pct":
+    if opponent_adjusted:
+        averages = _opponent_adjusted_averages(session, game, metric, game_limit)
+    elif metric == "field_goal_pct":
         averages = _recent_field_goal_percentages(session, game, game_limit)
     elif metric == "three_point_pct":
         averages = _recent_three_point_percentages(session, game, game_limit)
@@ -273,6 +327,86 @@ def _recent_special_scoring_averages(
 
 def _has_room(items: Sized, game_limit: int | None) -> bool:
     return game_limit is None or len(items) < game_limit
+
+
+def _opponent_adjusted_averages(
+    session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None,
+) -> dict[str, tuple[int, float]]:
+    if metric in {"bench_points", "second_chance_points", "good_defense", "scoring_lead_seconds"}:
+        rows = session.execute(
+            select(VisibleGameSpecialStat, VisibleScheduleGame)
+            .join(VisibleScheduleGame, VisibleScheduleGame.id == VisibleGameSpecialStat.schedule_game_id)
+            .where(VisibleScheduleGame.starts_at < target.starts_at)
+            .order_by(VisibleScheduleGame.starts_at.desc())
+        ).all()
+        game_values: dict[int, dict[str, float]] = {}
+        games: dict[int, VisibleScheduleGame] = {}
+        for stat, game in rows:
+            value = getattr(stat, metric)
+            if value is not None:
+                games.setdefault(game.id, game)
+                game_values.setdefault(game.id, {})[stat.team_name] = float(value)
+    else:
+        made_attempted = {
+            "field_goal_pct": ("field_goals_made", "field_goals_attempted"),
+            "three_point_pct": ("three_point_made", "three_point_attempted"),
+        }.get(metric)
+        rows = session.execute(
+            select(VisiblePlayerGameStat, VisibleScheduleGame)
+            .join(VisibleScheduleGame, VisibleScheduleGame.id == VisiblePlayerGameStat.schedule_game_id)
+            .where(VisibleScheduleGame.starts_at < target.starts_at)
+            .order_by(VisibleScheduleGame.starts_at.desc())
+        ).all()
+        games = {}
+        raw: dict[int, dict[str, list[float]]] = {}
+        for stat, game in rows:
+            if made_attempted:
+                made, attempted = getattr(stat, made_attempted[0]), getattr(stat, made_attempted[1])
+                if made is None or attempted is None:
+                    continue
+                values = (float(made), float(attempted))
+            else:
+                value = getattr(stat, metric)
+                if value is None:
+                    continue
+                values = (float(value), 0.0)
+            games.setdefault(game.id, game)
+            totals = raw.setdefault(game.id, {}).setdefault(stat.team_name, [0.0, 0.0])
+            totals[0] += values[0]
+            totals[1] += values[1]
+        game_values = {
+            game_id: {
+                team: (values[0] / values[1] * 100 if made_attempted and values[1] else values[0])
+                for team, values in teams.items() if not made_attempted or values[1]
+            }
+            for game_id, teams in raw.items()
+        }
+    target_teams = (target.first_team_name, target.second_team_name)
+    production: dict[str, list[float]] = {team: [] for team in target_teams}
+    allowed: dict[str, list[float]] = {team: [] for team in target_teams}
+    for team in target_teams:
+        for game_id, game in games.items():
+            participants = (game.first_team_name, game.second_team_name)
+            side = next((name for name in participants if _same_team(team, name)), None)
+            if side is None:
+                continue
+            opponent = participants[1] if side == participants[0] else participants[0]
+            own_key = next((name for name in game_values.get(game_id, {}) if _same_team(name, side)), None)
+            opponent_key = next((name for name in game_values.get(game_id, {}) if _same_team(name, opponent)), None)
+            if own_key is None or opponent_key is None:
+                continue
+            production[team].append(game_values[game_id][own_key])
+            allowed[team].append(game_values[game_id][opponent_key])
+            if not _has_room(production[team], game_limit):
+                break
+    output: dict[str, tuple[int, float]] = {}
+    for team, opponent in ((target_teams[0], target_teams[1]), (target_teams[1], target_teams[0])):
+        if production[team] and allowed[opponent]:
+            count = min(len(production[team]), len(allowed[opponent]))
+            expected = ((sum(production[team]) / len(production[team])) +
+                        (sum(allowed[opponent]) / len(allowed[opponent]))) / 2
+            output[team] = (count, expected)
+    return output
 
 
 def _matching_option(team_name: str | None, options: list[str]) -> str | None:

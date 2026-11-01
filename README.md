@@ -67,6 +67,7 @@ python -m app.cli collect-daily-picks-results --days 7
 python -m app.cli predict-daily-picks
 python -m app.cli backtest-daily-picks
 python -m app.cli evaluate-daily-picks-lookbacks
+python -m app.cli evaluate-daily-picks-strategies
 python -m app.cli refresh-daily --attempts 2 --game-limit 5
 ```
 
@@ -77,6 +78,8 @@ python -m app.cli refresh-daily --attempts 2 --game-limit 5
 `refresh-daily`는 일정, 선수 시즌기록, StatsKing, Daily Picks, 최근 완료 경기의 쿼터·선수기록·문자중계를 순서대로 갱신한다. 각 단계는 독립적으로 최대 1~3회만 재시도하며 한 단계가 최종 실패해도 나머지 단계는 실행한다. 실패가 하나라도 남으면 종료 코드 1을 반환하므로 외부 스케줄러가 실패를 감지할 수 있다. 일정 카드에 기록 링크가 먼저 나타났지만 문자중계 Q1~Q4 탭이 아직 준비되지 않은 경기는 정상적으로 건너뛰고 다음 실행에서 다시 확인한다. 예약 실행 자체는 사용자가 실행 주기와 환경을 정한 뒤 별도로 설정한다.
 
 `evaluate-daily-picks-lookbacks`는 각 문제의 대상 경기 이후 결과를 배제한 상태에서 최근 3·5·10경기와 전체 이전 경기 기준을 같은 공식 정답에 비교한다. 이 결과는 기간 선택 연구용이며 작은 표본에서 가장 높은 값을 곧바로 생산 규칙으로 채택하지 않는다.
+
+`evaluate-daily-picks-strategies`는 기존 팀 자체 최근 평균과 `팀 자체 생산 50% + 상대 팀의 최근 허용 50%` 기대값을 공식 과거 정답에서 비교한다. 상대 허용 전략은 연구 모드이며 충분한 신규 표본에서 개선이 재현되기 전에는 실제 추천 규칙을 바꾸지 않는다.
 
 `collect-schedule`은 [일정 및 결과](https://www.kbl.or.kr/match/schedule) 화면의 월별 경기 카드에서 날짜·시각·장소·두 팀의 표시 순서·점수·완료 여부만 수집한다. 화면에 홈/원정 라벨이 없으므로 팀 표시 순서를 홈/원정으로 추정하지 않는다. 미래 경기에 표시되는 `0-0`은 점수가 아니라 미확정 일정으로 저장한다.
 

@@ -11,10 +11,12 @@ from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.daily_picks_recommendation import (
     backtest_daily_picks,
     evaluate_daily_picks_lookbacks,
+    evaluate_daily_picks_strategies,
     recommend_daily_picks,
     render_daily_picks_backtest,
     render_daily_picks_lookback_evaluations,
     render_daily_picks_recommendations,
+    render_daily_picks_strategy_evaluations,
 )
 from app.services.daily_picks_result_collection import collect_visible_daily_picks_results
 from app.services.daily_refresh import run_daily_refresh_steps
@@ -113,6 +115,13 @@ def evaluate_daily_picks_lookbacks_command() -> None:
     """공식 과거 정답에서 최근 3·5·10경기와 전체 이전 경기 기준을 비교한다."""
     with _session() as session:
         typer.echo(render_daily_picks_lookback_evaluations(evaluate_daily_picks_lookbacks(session)))
+
+
+@app.command("evaluate-daily-picks-strategies")
+def evaluate_daily_picks_strategies_command() -> None:
+    """팀 자체 평균과 상대 허용 기록 결합 전략을 공식 과거 정답에서 비교한다."""
+    with _session() as session:
+        typer.echo(render_daily_picks_strategy_evaluations(evaluate_daily_picks_strategies(session)))
 
 
 @app.command("refresh-daily")
