@@ -1,4 +1,5 @@
 """Recommend Daily Picks from prior visible team box-score totals only."""
+from collections.abc import Sized
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -54,6 +55,14 @@ class DailyPicksBacktest:
     skipped: dict[str, int]
 
 
+@dataclass(frozen=True)
+class DailyPicksLookbackEvaluation:
+    game_limit: int | None
+    evaluable: int
+    correct: int
+    accuracy: float | None
+
+
 def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
     questions = list(session.scalars(select(ChallengeQuestion).where(
         ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS,
@@ -68,7 +77,7 @@ def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
     return recommendations
 
 
-def backtest_daily_picks(session: Session) -> DailyPicksBacktest:
+def backtest_daily_picks(session: Session, game_limit: int | None = 5) -> DailyPicksBacktest:
     rows = session.execute(
         select(ChallengeQuestion, ChallengeResult)
         .join(ChallengeResult, ChallengeResult.question_id == ChallengeQuestion.id)
@@ -78,7 +87,7 @@ def backtest_daily_picks(session: Session) -> DailyPicksBacktest:
     correct = evaluable = 0
     skipped: dict[str, int] = {}
     for question, result in rows:
-        recommendation = _recommend_question(session, question)
+        recommendation = _recommend_question(session, question, game_limit=game_limit)
         answer = result.official_answer if isinstance(result.official_answer, dict) else {}
         answer_label = answer.get("label")
         if recommendation.recommended_team is None or not isinstance(answer_label, str):
@@ -91,6 +100,27 @@ def backtest_daily_picks(session: Session) -> DailyPicksBacktest:
         answered=len(rows), evaluable=evaluable, correct=correct,
         accuracy=(correct / evaluable) if evaluable else None, skipped=skipped,
     )
+
+
+def evaluate_daily_picks_lookbacks(
+    session: Session, limits: tuple[int | None, ...] = (3, 5, 10, None),
+) -> list[DailyPicksLookbackEvaluation]:
+    evaluations: list[DailyPicksLookbackEvaluation] = []
+    for limit in limits:
+        result = backtest_daily_picks(session, game_limit=limit)
+        evaluations.append(DailyPicksLookbackEvaluation(
+            game_limit=limit, evaluable=result.evaluable, correct=result.correct, accuracy=result.accuracy,
+        ))
+    return evaluations
+
+
+def render_daily_picks_lookback_evaluations(items: list[DailyPicksLookbackEvaluation]) -> str:
+    lines = ["KBL DAILY PICKS LOOKBACK EVALUATION"]
+    for item in items:
+        label = "전체 이전 경기" if item.game_limit is None else f"최근 {item.game_limit}경기"
+        accuracy = "평가 불가" if item.accuracy is None else f"{item.accuracy * 100:.1f}%"
+        lines.append(f"{label}: 평가 {item.evaluable}건 / 적중 {item.correct}건 / {accuracy}")
+    return "\n".join(lines)
 
 
 def render_daily_picks_backtest(result: DailyPicksBacktest) -> str:
@@ -107,7 +137,9 @@ def render_daily_picks_backtest(result: DailyPicksBacktest) -> str:
     return "\n".join(lines)
 
 
-def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyPicksRecommendation:
+def _recommend_question(
+    session: Session, question: ChallengeQuestion, game_limit: int | None = 5,
+) -> DailyPicksRecommendation:
     link = session.scalar(select(DailyPicksScheduleLink).where(
         DailyPicksScheduleLink.question_id == question.id,
     ))
@@ -118,13 +150,13 @@ def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyP
     if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
         return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인")
     if metric == "field_goal_pct":
-        averages = _recent_field_goal_percentages(session, game)
+        averages = _recent_field_goal_percentages(session, game, game_limit)
     elif metric == "three_point_pct":
-        averages = _recent_three_point_percentages(session, game)
+        averages = _recent_three_point_percentages(session, game, game_limit)
     elif metric in {"bench_points", "second_chance_points", "good_defense", "scoring_lead_seconds"}:
-        averages = _recent_special_scoring_averages(session, game, metric)
+        averages = _recent_special_scoring_averages(session, game, metric, game_limit)
     else:
-        averages = _recent_team_averages(session, game, metric)
+        averages = _recent_team_averages(session, game, metric, game_limit)
     first = averages.get(game.first_team_name)
     second = averages.get(game.second_team_name)
     if first is None or second is None or min(first[0], second[0]) < 3:
@@ -155,7 +187,7 @@ def render_daily_picks_recommendations(items: list[DailyPicksRecommendation]) ->
 
 
 def _recent_team_averages(
-    session: Session, target: VisibleScheduleGame, metric: str,
+    session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
     rows = session.execute(
         select(VisiblePlayerGameStat, VisibleScheduleGame)
@@ -167,7 +199,7 @@ def _recent_team_averages(
     for stat, game in rows:
         target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
         value = getattr(stat, metric)
-        if target_team is not None and value is not None and len(totals[target_team]) < 5:
+        if target_team is not None and value is not None and _has_room(totals[target_team], game_limit):
             totals[target_team][game.id] = totals[target_team].get(game.id, 0) + value
     return {
         team: (len(games), sum(games.values()) / len(games))
@@ -175,20 +207,25 @@ def _recent_team_averages(
     }
 
 
-def _recent_field_goal_percentages(session: Session, target: VisibleScheduleGame) -> dict[str, tuple[int, float]]:
+def _recent_field_goal_percentages(
+    session: Session, target: VisibleScheduleGame, game_limit: int | None = 5,
+) -> dict[str, tuple[int, float]]:
     return _recent_shooting_percentages(
-        session, target, "field_goals_made", "field_goals_attempted",
+        session, target, "field_goals_made", "field_goals_attempted", game_limit,
     )
 
 
-def _recent_three_point_percentages(session: Session, target: VisibleScheduleGame) -> dict[str, tuple[int, float]]:
+def _recent_three_point_percentages(
+    session: Session, target: VisibleScheduleGame, game_limit: int | None = 5,
+) -> dict[str, tuple[int, float]]:
     return _recent_shooting_percentages(
-        session, target, "three_point_made", "three_point_attempted",
+        session, target, "three_point_made", "three_point_attempted", game_limit,
     )
 
 
 def _recent_shooting_percentages(
     session: Session, target: VisibleScheduleGame, made_field: str, attempted_field: str,
+    game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
     rows = session.execute(
         select(VisiblePlayerGameStat, VisibleScheduleGame)
@@ -203,7 +240,7 @@ def _recent_shooting_percentages(
         attempted = getattr(stat, attempted_field)
         if target_team is None or made is None or attempted is None:
             continue
-        if len(totals[target_team]) < 5:
+        if _has_room(totals[target_team], game_limit):
             game_totals = totals[target_team].setdefault(game.id, [0, 0])
             game_totals[0] += made
             game_totals[1] += attempted
@@ -214,7 +251,7 @@ def _recent_shooting_percentages(
 
 
 def _recent_special_scoring_averages(
-    session: Session, target: VisibleScheduleGame, metric: str,
+    session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
     rows = session.execute(
         select(VisibleGameSpecialStat, VisibleScheduleGame)
@@ -226,12 +263,16 @@ def _recent_special_scoring_averages(
     for stat, _game in rows:
         target_team = next((team for team in values if _same_team(team, stat.team_name)), None)
         value = getattr(stat, metric)
-        if target_team is not None and value is not None and len(values[target_team]) < 5:
+        if target_team is not None and value is not None and _has_room(values[target_team], game_limit):
             values[target_team].append(value)
     return {
         team: (len(items), sum(items) / len(items))
         for team, items in values.items() if items
     }
+
+
+def _has_room(items: Sized, game_limit: int | None) -> bool:
+    return game_limit is None or len(items) < game_limit
 
 
 def _matching_option(team_name: str | None, options: list[str]) -> str | None:

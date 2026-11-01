@@ -10,8 +10,10 @@ from app.models import VisiblePlayerGameStat, Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.daily_picks_recommendation import (
     backtest_daily_picks,
+    evaluate_daily_picks_lookbacks,
     recommend_daily_picks,
     render_daily_picks_backtest,
+    render_daily_picks_lookback_evaluations,
     render_daily_picks_recommendations,
 )
 from app.services.daily_picks_result_collection import collect_visible_daily_picks_results
@@ -104,6 +106,13 @@ def backtest_daily_picks_command() -> None:
     """공식 과거 정답과 경기 전 기록만 사용한 현재 추천 규칙을 비교한다."""
     with _session() as session:
         typer.echo(render_daily_picks_backtest(backtest_daily_picks(session)))
+
+
+@app.command("evaluate-daily-picks-lookbacks")
+def evaluate_daily_picks_lookbacks_command() -> None:
+    """공식 과거 정답에서 최근 3·5·10경기와 전체 이전 경기 기준을 비교한다."""
+    with _session() as session:
+        typer.echo(render_daily_picks_lookback_evaluations(evaluate_daily_picks_lookbacks(session)))
 
 
 @app.command("refresh-daily")
