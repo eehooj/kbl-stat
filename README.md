@@ -55,6 +55,7 @@ python -m app.cli collect-game-quarters
 python -m app.cli collect-game-player-stats
 python -m app.cli backfill-game-shooting
 python -m app.cli collect-game-special-scoring
+python -m app.cli backfill-game-special-scoring
 python -m app.cli collect-team-rankings
 python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+09:00
 python -m app.cli collect-stats-king
@@ -76,7 +77,7 @@ python -m app.cli backtest-daily-picks
 
 선수 박스스코어의 3점슛 성공·시도와 자유투 성공도 저장한다. 기존 보존 화면에는 `backfill-game-shooting`을 실행해 채울 수 있으며, Daily Picks의 자유투 성공과 3점슛 성공률 추천·백테스트에 사용한다.
 
-`collect-game-special-scoring`은 공개 `문자중계`의 Q1~Q4 화면에서 선발 5명, 교체, 공격리바운드와 득점 이벤트를 읽어 팀별 벤치 득점과 세컨드 찬스 득점을 산출한다. 특정 경기는 `--record-url`로 검증할 수 있다. 내부 API는 직접 호출하지 않는다.
+`collect-game-special-scoring`은 공개 `문자중계`의 Q1~Q4 화면에서 선발 5명, 교체, 공격리바운드, 득점, 굿디펜스 이벤트를 읽어 팀별 벤치 득점·세컨드 찬스 득점·굿디펜스 성공을 산출한다. 특정 경기는 `--record-url`로 검증할 수 있다. `backfill-game-special-scoring`은 저장된 공식 경기 URL을 화면에서 다시 열어 기존 경기의 특수 기록을 갱신한다. 내부 API는 직접 호출하지 않는다.
 
 `collect-season-schedule --season 2026-2027`은 같은 화면의 월 이동 버튼으로 10월부터 다음 해 5월까지를 차례로 렌더링한다. 경기 카드가 없는 월도 화면 원문과 수집 이력은 남기며, 표시되지 않은 과거·미래 경기를 만들지 않는다.
 

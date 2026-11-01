@@ -29,6 +29,7 @@ METRIC_LABELS = {
     "fouls": "개인 파울",
     "bench_points": "벤치 득점",
     "second_chance_points": "세컨드 찬스 득점",
+    "good_defense": "굿디펜스",
 }
 
 
@@ -119,7 +120,7 @@ def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyP
         averages = _recent_field_goal_percentages(session, game)
     elif metric == "three_point_pct":
         averages = _recent_three_point_percentages(session, game)
-    elif metric in {"bench_points", "second_chance_points"}:
+    elif metric in {"bench_points", "second_chance_points", "good_defense"}:
         averages = _recent_special_scoring_averages(session, game, metric)
     else:
         averages = _recent_team_averages(session, game, metric)
@@ -223,8 +224,9 @@ def _recent_special_scoring_averages(
     values: dict[str, list[int]] = {target.first_team_name: [], target.second_team_name: []}
     for stat, _game in rows:
         target_team = next((team for team in values if _same_team(team, stat.team_name)), None)
-        if target_team is not None and len(values[target_team]) < 5:
-            values[target_team].append(getattr(stat, metric))
+        value = getattr(stat, metric)
+        if target_team is not None and value is not None and len(values[target_team]) < 5:
+            values[target_team].append(value)
     return {
         team: (len(items), sum(items) / len(items))
         for team, items in values.items() if items

@@ -207,6 +207,7 @@ class VisibleGameSpecialStat(Base):
     team_name: Mapped[str] = mapped_column(String(100))
     bench_points: Mapped[int] = mapped_column(Integer)
     second_chance_points: Mapped[int] = mapped_column(Integer)
+    good_defense: Mapped[int | None] = mapped_column(Integer)
     calculation_version: Mapped[str] = mapped_column(String(50))
     source_url: Mapped[str] = mapped_column(String(500))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

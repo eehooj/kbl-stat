@@ -32,6 +32,8 @@ def test_derives_bench_and_second_chance_points_from_visible_events() -> None:
             event("8:45", 2, "타 자유투성공"),
             event("8:45", 2, "타 자유투성공"),
             event("8:30", 1, "가 수비리바운드"),
+            event("8:20", 1, "나 굿디펜스"),
+            event("8:10", 2, "아치 굿윈 턴오버"),
             event("8:00", 1, "카 3점슛성공"),
             event("7:30", 2, "바 2점슛성공"),
         ]
@@ -39,6 +41,7 @@ def test_derives_bench_and_second_chance_points_from_visible_events() -> None:
     first, second = derive_special_scoring(events)
     assert (first.bench_points, first.second_chance_points) == (5, 2)
     assert (second.bench_points, second.second_chance_points) == (2, 2)
+    assert (first.good_defense, second.good_defense) == (1, 0)
 
 
 def test_rejects_text_broadcast_without_exact_starting_fives() -> None:
@@ -57,7 +60,7 @@ def test_verifies_bench_points_against_complete_visible_box_score() -> None:
         SimpleNamespace(player_name="선발 A", points=20),
         SimpleNamespace(player_name="벤치 B", points=7),
     ]
-    result = SpecialScoring(1, 7, 0, ("선발A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 7, 0, 0, ("선발A", "선발2", "선발3", "선발4", "선발5"))
     _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
 
@@ -67,7 +70,7 @@ def test_rejects_bench_points_that_contradict_complete_visible_box_score() -> No
         SimpleNamespace(player_name="선발 A", points=20),
         SimpleNamespace(player_name="벤치 B", points=7),
     ]
-    result = SpecialScoring(1, 9, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 9, 0, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
     with pytest.raises(ValueError, match="공식 선수기록 합계"):
         _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
@@ -75,7 +78,7 @@ def test_rejects_bench_points_that_contradict_complete_visible_box_score() -> No
 def test_skips_cross_check_when_visible_box_score_is_incomplete() -> None:
     session = MagicMock()
     session.scalars.return_value = [SimpleNamespace(player_name="선발 A", points=20)]
-    result = SpecialScoring(1, 9, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 9, 0, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
     _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
 

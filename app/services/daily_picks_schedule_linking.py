@@ -21,6 +21,7 @@ METRICS = {
     "자유튜": "free_throw_made",
     "세컨드 찬스에 의한 득점": "second_chance_points",
     "벤치 득점": "bench_points",
+    "굿디펜스": "good_defense",
     "덩크슛": "dunk_made",
     "2점슛 성공": "two_point_made",
     "득점": "points",

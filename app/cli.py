@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, select
 from app.collectors.official_pages import KBL_BASE_URL, KBLRenderedPageClient
 from app.config import get_settings
 from app.database import Base, make_session_factory
-from app.models import Weekly6Round
+from app.models import VisiblePlayerGameStat, Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.daily_picks_recommendation import (
     backtest_daily_picks,
@@ -179,6 +179,21 @@ def collect_game_special_scoring(
         saved, unlinked = collect_visible_special_scoring(session, pages)
     typer.echo(
         f"공식 문자중계 {len(pages)}경기에서 팀 특수 득점 {saved}건을 저장했고, "
+        f"일정 미연결은 {unlinked}건입니다."
+    )
+
+
+@app.command("backfill-game-special-scoring")
+def backfill_game_special_scoring() -> None:
+    """저장된 공식 경기 URL의 문자중계를 다시 열어 팀 특수 기록을 채운다."""
+    with _session() as session:
+        urls = list(session.scalars(select(VisiblePlayerGameStat.source_url).distinct()))
+    client = KBLRenderedPageClient()
+    pages = [client.render_game_play_by_play(url) for url in urls]
+    with _session() as session:
+        saved, unlinked = collect_visible_special_scoring(session, pages)
+    typer.echo(
+        f"저장된 공식 경기 URL {len(pages)}건의 문자중계에서 팀 특수 기록 {saved}건을 저장했고, "
         f"일정 미연결은 {unlinked}건입니다."
     )
 

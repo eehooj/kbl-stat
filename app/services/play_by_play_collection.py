@@ -21,6 +21,7 @@ class SpecialScoring:
     team_order: int
     bench_points: int
     second_chance_points: int
+    good_defense: int
     starters: tuple[str, ...]
 
 
@@ -47,6 +48,7 @@ def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[
         )
     bench = {1: 0, 2: 0}
     second = {1: 0, 2: 0}
+    good_defense = {1: 0, 2: 0}
     chance_side: int | None = None
     previous_quarter = 0
     for event in chronological:
@@ -54,6 +56,8 @@ def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[
             chance_side = None
             previous_quarter = event.quarter
         description = event.description.strip()
+        if description.endswith(" 굿디펜스"):
+            good_defense[event.team_order] += 1
         if "공격리바운드" in description:
             chance_side = event.team_order
             continue
@@ -75,7 +79,10 @@ def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[
                 chance_side = None
         elif "턴오버" in description and chance_side == event.team_order:
             chance_side = None
-    return tuple(SpecialScoring(side, bench[side], second[side], starters[side]) for side in (1, 2))
+    return tuple(
+        SpecialScoring(side, bench[side], second[side], good_defense[side], starters[side])
+        for side in (1, 2)
+    )
 
 
 def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePlayByPlay]) -> tuple[int, int]:
@@ -101,9 +108,10 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
             fields = {
                 "bench_points": result.bench_points,
                 "second_chance_points": result.second_chance_points,
+                "good_defense": result.good_defense,
                 "source_url": rendered.summary_page.url,
                 "observed_at": rendered.summary_page.fetched_at,
-                "calculation_version": "visible-play-by-play-v2",
+                "calculation_version": "visible-play-by-play-v3",
             }
             if stored is None:
                 session.add(VisibleGameSpecialStat(schedule_game_id=game.id, team_name=team_name, **fields))
