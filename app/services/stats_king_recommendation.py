@@ -47,9 +47,10 @@ def recommend_stats_king_leaders(session: Session) -> StatsKingRecommendation | 
         PlayerAvailability.availability_date == game.starts_at.date(),
         PlayerAvailability.status == "out",
     )))
-    players = list(session.scalars(select(VisiblePlayerSeasonStat).order_by(
+    stored_players = list(session.scalars(select(VisiblePlayerSeasonStat).order_by(
         VisiblePlayerSeasonStat.observed_at.desc(),
     )))
+    players = _latest_roster_snapshot(stored_players)
     candidates = [
         player for player in players
         if _same_team(player.team_name, game.first_team_name) or _same_team(player.team_name, game.second_team_name)
@@ -172,3 +173,15 @@ def _is_unavailable(player: VisiblePlayerSeasonStat, availability: list[PlayerAv
 
 def _is_game_team(availability_team: str | None, team_name: str) -> bool:
     return availability_team is None or _same_team(availability_team, team_name)
+
+
+def _latest_roster_snapshot(
+    players: list[VisiblePlayerSeasonStat],
+) -> list[VisiblePlayerSeasonStat]:
+    latest = max(
+        (player.roster_snapshot_at for player in players if player.roster_snapshot_at is not None),
+        default=None,
+    )
+    if latest is None:
+        return []
+    return [player for player in players if player.roster_snapshot_at == latest]

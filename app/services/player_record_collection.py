@@ -31,6 +31,7 @@ def collect_visible_player_records(session: Session, pages: list[RenderedPlayerR
         season = Season(code=season_name, name=season_name)
         session.add(season)
         session.flush()
+    roster_snapshot_at = max(rendered.page.fetched_at for rendered in pages)
     count = 0
     for rendered in pages:
         if _season_from_page(rendered) != season_name:
@@ -52,6 +53,7 @@ def collect_visible_player_records(session: Session, pages: list[RenderedPlayerR
                 "assists": row.assists,
                 "source_url": rendered.page.url,
                 "observed_at": rendered.page.fetched_at,
+                "roster_snapshot_at": roster_snapshot_at,
             }
             if stored is None:
                 session.add(VisiblePlayerSeasonStat(

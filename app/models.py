@@ -114,6 +114,7 @@ class VisiblePlayerSeasonStat(Base):
     assists: Mapped[int] = mapped_column(Integer)
     source_url: Mapped[str] = mapped_column(String(500))
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    roster_snapshot_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__ = (
         UniqueConstraint("season_id", "player_name", "team_name", name="uq_visible_player_season_stat"),
     )
