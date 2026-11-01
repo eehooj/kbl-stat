@@ -9,9 +9,12 @@ from app.database import Base, make_session_factory
 from app.models import Weekly6Round
 from app.services.daily_picks_collection import collect_visible_daily_picks
 from app.services.daily_picks_recommendation import (
+    backtest_daily_picks,
     recommend_daily_picks,
+    render_daily_picks_backtest,
     render_daily_picks_recommendations,
 )
+from app.services.daily_picks_result_collection import collect_visible_daily_picks_results
 from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.play_by_play_collection import collect_visible_special_scoring
 from app.services.player_availability import record_unavailable_player
@@ -71,11 +74,32 @@ def collect_daily_picks() -> None:
     typer.echo(f"공식 Daily Picks 화면 문제 {count}건을 수집·갱신했고 일정 {linked}건을 연결했습니다.")
 
 
+@app.command("collect-daily-picks-results")
+def collect_daily_picks_results(
+    days: int = typer.Option(7, "--days", min=1, max=31, help="오늘 이전 확인 일수"),
+) -> None:
+    """과거 Daily Picks 화면에 정답 상태로 표시된 선택지만 수집한다."""
+    pages = KBLRenderedPageClient().render_daily_picks_history(days)
+    with _session() as session:
+        questions, answers = collect_visible_daily_picks_results(session, pages)
+    typer.echo(
+        f"공식 과거 Daily Picks 화면 {len(pages)}일에서 문제 {questions}건과 "
+        f"화면상 정답 {answers}건을 수집·갱신했습니다."
+    )
+
+
 @app.command("predict-daily-picks")
 def predict_daily_picks() -> None:
     """대상 경기 이전 공개 팀 박스스코어로 Daily Picks를 추천한다."""
     with _session() as session:
         typer.echo(render_daily_picks_recommendations(recommend_daily_picks(session)))
+
+
+@app.command("backtest-daily-picks")
+def backtest_daily_picks_command() -> None:
+    """공식 과거 정답과 경기 전 기록만 사용한 현재 추천 규칙을 비교한다."""
+    with _session() as session:
+        typer.echo(render_daily_picks_backtest(backtest_daily_picks(session)))
 
 
 @app.command("collect-stats-king")

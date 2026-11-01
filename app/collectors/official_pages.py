@@ -68,6 +68,12 @@ class RenderedGamePlayByPlay:
     events: tuple[VisiblePlayByPlayEvent, ...]
 
 
+@dataclass(frozen=True)
+class RenderedDailyPicksResultPage:
+    page: RenderedPage
+    correct_option_labels: tuple[str, ...]
+
+
 class KBLRenderedPageClient:
     """Reads visible text only; it never requests KBL's internal API endpoints."""
 
@@ -211,6 +217,28 @@ class KBLRenderedPageClient:
 
     def render_daily_picks(self) -> RenderedPage:
         return self.render(DAILY_PICKS_URL)
+
+    def render_daily_picks_history(self, days: int) -> list[RenderedDailyPicksResultPage]:
+        """Navigate visible previous-day controls and read displayed correct option states."""
+        if days < 1:
+            raise ValueError("days must be positive")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            page.goto(DAILY_PICKS_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            page.wait_for_timeout(1500)
+            rendered: list[RenderedDailyPicksResultPage] = []
+            for _ in range(days):
+                page.get_by_role("button", name="이전으로").click()
+                page.wait_for_timeout(700)
+                visible_text = _daily_picks_question_text(page.locator("body").inner_text())
+                correct_labels = _visible_daily_picks_correct_options(page)
+                rendered.append(RenderedDailyPicksResultPage(
+                    page=_make_rendered_page(page.url, page.title(), visible_text),
+                    correct_option_labels=tuple(correct_labels),
+                ))
+            browser.close()
+        return rendered
 
     def render_stats_king(self) -> RenderedPage:
         return self.render(STATS_KING_URL)
@@ -356,3 +384,28 @@ def _visible_play_by_play_periods(page) -> list[tuple[str, int]]:
     if [period for _label, period in periods[:4]] != [1, 2, 3, 4]:
         raise ValueError("문자중계 화면에서 Q1~Q4 탭을 확인할 수 없습니다")
     return periods
+
+
+def _visible_daily_picks_correct_options(page) -> list[str]:
+    groups: dict[str, str] = {}
+    inputs = page.locator("input[type=radio][name^=radio]").all()
+    for item in inputs:
+        classes = set((item.get_attribute("class") or "").split())
+        if "true" not in classes:
+            continue
+        name = item.get_attribute("name") or ""
+        option_id = item.get_attribute("id") or ""
+        if not name or not option_id or name in groups:
+            raise ValueError("Daily Picks 과거 화면의 정답 상태를 하나로 확정할 수 없습니다")
+        label = page.locator(f'label[for="{option_id}"]')
+        if label.count() != 1:
+            raise ValueError("Daily Picks 정답 선택지 라벨이 화면에 하나만 표시되지 않았습니다")
+        groups[name] = label.inner_text().strip()
+    return [groups[name] for name in sorted(groups, key=lambda value: int(value.removeprefix("radio")))]
+
+
+def _daily_picks_question_text(visible_text: str) -> str:
+    """Exclude the unrelated masked winner list from retained question evidence."""
+    lines = visible_text.splitlines()
+    winner_index = next((index for index, line in enumerate(lines) if line.strip() == "정답자"), None)
+    return visible_text if winner_index is None else "\n".join(lines[:winner_index]).strip()

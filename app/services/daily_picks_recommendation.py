@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     ChallengeOption,
     ChallengeQuestion,
+    ChallengeResult,
     ChallengeType,
     DailyPicksScheduleLink,
     VisibleGameSpecialStat,
@@ -39,6 +40,15 @@ class DailyPicksRecommendation:
     status: str
 
 
+@dataclass(frozen=True)
+class DailyPicksBacktest:
+    answered: int
+    evaluable: int
+    correct: int
+    accuracy: float | None
+    skipped: dict[str, int]
+
+
 def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
     questions = list(session.scalars(select(ChallengeQuestion).where(
         ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS,
@@ -49,34 +59,78 @@ def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
     questions = [question for question in questions if question.question_date == target_date]
     recommendations: list[DailyPicksRecommendation] = []
     for question in sorted(questions, key=lambda item: (item.raw_payload or {}).get("ordinal", 0)):
-        link = session.scalar(select(DailyPicksScheduleLink).where(DailyPicksScheduleLink.question_id == question.id))
-        if link is None:
-            recommendations.append(DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "일정 미연결"))
-            continue
-        game = session.get(VisibleScheduleGame, link.schedule_game_id)
-        payload = question.raw_payload if isinstance(question.raw_payload, dict) else {}
-        metric = (payload.get("classification") or classify_visible_daily_pick(question.text or "")).get("metric")
-        if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
-            recommendations.append(DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인"))
-            continue
-        if metric == "field_goal_pct":
-            averages = _recent_field_goal_percentages(session, game)
-        elif metric in {"bench_points", "second_chance_points"}:
-            averages = _recent_special_scoring_averages(session, game, metric)
-        else:
-            averages = _recent_team_averages(session, game, metric)
-        first = averages.get(game.first_team_name)
-        second = averages.get(game.second_team_name)
-        if first is None or second is None or min(first[0], second[0]) < 3:
-            recommendations.append(DailyPicksRecommendation(question.text or "", metric, None, None, None, 0, "최근 기록 부족"))
-            continue
-        winner = game.first_team_name if first[1] > second[1] else game.second_team_name if second[1] > first[1] else None
-        option_labels = list(session.scalars(select(ChallengeOption.label).where(ChallengeOption.question_id == question.id)))
-        recommendations.append(DailyPicksRecommendation(
-            question.text or "", metric, _matching_option(winner, option_labels), first[1], second[1], min(first[0], second[0]),
-            "추천 가능" if winner else "평균 동률",
-        ))
+        recommendations.append(_recommend_question(session, question))
     return recommendations
+
+
+def backtest_daily_picks(session: Session) -> DailyPicksBacktest:
+    rows = session.execute(
+        select(ChallengeQuestion, ChallengeResult)
+        .join(ChallengeResult, ChallengeResult.question_id == ChallengeQuestion.id)
+        .where(ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS)
+        .order_by(ChallengeQuestion.question_date)
+    ).all()
+    correct = evaluable = 0
+    skipped: dict[str, int] = {}
+    for question, result in rows:
+        recommendation = _recommend_question(session, question)
+        answer = result.official_answer if isinstance(result.official_answer, dict) else {}
+        answer_label = answer.get("label")
+        if recommendation.recommended_team is None or not isinstance(answer_label, str):
+            skipped[recommendation.status] = skipped.get(recommendation.status, 0) + 1
+            continue
+        evaluable += 1
+        if _same_team(recommendation.recommended_team, answer_label):
+            correct += 1
+    return DailyPicksBacktest(
+        answered=len(rows), evaluable=evaluable, correct=correct,
+        accuracy=(correct / evaluable) if evaluable else None, skipped=skipped,
+    )
+
+
+def render_daily_picks_backtest(result: DailyPicksBacktest) -> str:
+    accuracy = "평가 불가" if result.accuracy is None else f"{result.accuracy * 100:.1f}%"
+    lines = [
+        "KBL DAILY PICKS BACKTEST",
+        (
+            f"공식 정답 {result.answered}건 / 평가 가능 {result.evaluable}건 / "
+            f"적중 {result.correct}건 / 적중률 {accuracy}"
+        ),
+    ]
+    if result.skipped:
+        lines.append("평가 제외: " + ", ".join(f"{key} {value}건" for key, value in sorted(result.skipped.items())))
+    return "\n".join(lines)
+
+
+def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyPicksRecommendation:
+    link = session.scalar(select(DailyPicksScheduleLink).where(
+        DailyPicksScheduleLink.question_id == question.id,
+    ))
+    if link is None:
+        return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "일정 미연결")
+    game = session.get(VisibleScheduleGame, link.schedule_game_id)
+    payload = question.raw_payload if isinstance(question.raw_payload, dict) else {}
+    metric = (payload.get("classification") or classify_visible_daily_pick(question.text or "")).get("metric")
+    if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
+        return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인")
+    if metric == "field_goal_pct":
+        averages = _recent_field_goal_percentages(session, game)
+    elif metric in {"bench_points", "second_chance_points"}:
+        averages = _recent_special_scoring_averages(session, game, metric)
+    else:
+        averages = _recent_team_averages(session, game, metric)
+    first = averages.get(game.first_team_name)
+    second = averages.get(game.second_team_name)
+    if first is None or second is None or min(first[0], second[0]) < 3:
+        return DailyPicksRecommendation(question.text or "", metric, None, None, None, 0, "최근 기록 부족")
+    winner = game.first_team_name if first[1] > second[1] else game.second_team_name if second[1] > first[1] else None
+    option_labels = list(session.scalars(select(ChallengeOption.label).where(
+        ChallengeOption.question_id == question.id,
+    )))
+    return DailyPicksRecommendation(
+        question.text or "", metric, _matching_option(winner, option_labels),
+        first[1], second[1], min(first[0], second[0]), "추천 가능" if winner else "평균 동률",
+    )
 
 
 def render_daily_picks_recommendations(items: list[DailyPicksRecommendation]) -> str:
