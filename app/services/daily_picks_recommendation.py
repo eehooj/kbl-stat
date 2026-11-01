@@ -18,6 +18,8 @@ from app.services.daily_picks_schedule_linking import classify_visible_daily_pic
 
 METRIC_LABELS = {
     "field_goal_pct": "필드골 성공률",
+    "three_point_pct": "3점슛 성공률",
+    "free_throw_made": "자유투 성공",
     "steals": "스틸",
     "two_point_made": "2점슛 성공",
     "turnovers": "턴오버",
@@ -109,12 +111,13 @@ def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyP
     if link is None:
         return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "일정 미연결")
     game = session.get(VisibleScheduleGame, link.schedule_game_id)
-    payload = question.raw_payload if isinstance(question.raw_payload, dict) else {}
-    metric = (payload.get("classification") or classify_visible_daily_pick(question.text or "")).get("metric")
+    metric = classify_visible_daily_pick(question.text or "").get("metric")
     if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
         return DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인")
     if metric == "field_goal_pct":
         averages = _recent_field_goal_percentages(session, game)
+    elif metric == "three_point_pct":
+        averages = _recent_three_point_percentages(session, game)
     elif metric in {"bench_points", "second_chance_points"}:
         averages = _recent_special_scoring_averages(session, game, metric)
     else:
@@ -170,6 +173,20 @@ def _recent_team_averages(
 
 
 def _recent_field_goal_percentages(session: Session, target: VisibleScheduleGame) -> dict[str, tuple[int, float]]:
+    return _recent_shooting_percentages(
+        session, target, "field_goals_made", "field_goals_attempted",
+    )
+
+
+def _recent_three_point_percentages(session: Session, target: VisibleScheduleGame) -> dict[str, tuple[int, float]]:
+    return _recent_shooting_percentages(
+        session, target, "three_point_made", "three_point_attempted",
+    )
+
+
+def _recent_shooting_percentages(
+    session: Session, target: VisibleScheduleGame, made_field: str, attempted_field: str,
+) -> dict[str, tuple[int, float]]:
     rows = session.execute(
         select(VisiblePlayerGameStat, VisibleScheduleGame)
         .join(VisibleScheduleGame, VisibleScheduleGame.id == VisiblePlayerGameStat.schedule_game_id)
@@ -179,12 +196,14 @@ def _recent_field_goal_percentages(session: Session, target: VisibleScheduleGame
     totals: dict[str, dict[int, list[int]]] = {target.first_team_name: {}, target.second_team_name: {}}
     for stat, game in rows:
         target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
-        if target_team is None or stat.field_goals_made is None or stat.field_goals_attempted is None:
+        made = getattr(stat, made_field)
+        attempted = getattr(stat, attempted_field)
+        if target_team is None or made is None or attempted is None:
             continue
         if len(totals[target_team]) < 5:
             game_totals = totals[target_team].setdefault(game.id, [0, 0])
-            game_totals[0] += stat.field_goals_made
-            game_totals[1] += stat.field_goals_attempted
+            game_totals[0] += made
+            game_totals[1] += attempted
     return {
         team: (len(games), (sum(item[0] for item in games.values()) / sum(item[1] for item in games.values())) * 100)
         for team, games in totals.items() if games and sum(item[1] for item in games.values()) > 0

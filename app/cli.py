@@ -20,6 +20,7 @@ from app.services.play_by_play_collection import collect_visible_special_scoring
 from app.services.player_availability import record_unavailable_player
 from app.services.player_game_stat_collection import (
     backfill_visible_dunk_makes,
+    backfill_visible_shooting_stats,
     collect_visible_player_game_stats,
 )
 from app.services.player_record_collection import collect_visible_player_records
@@ -188,6 +189,14 @@ def backfill_game_dunks() -> None:
     with _session() as session:
         updated = backfill_visible_dunk_makes(session)
     typer.echo(f"보관된 공식 박스스코어에서 덩크 성공 {updated}행을 갱신했습니다.")
+
+
+@app.command("backfill-game-shooting")
+def backfill_game_shooting() -> None:
+    """보관된 공식 선수 박스스코어에서 3점슛·자유투 값을 다시 채운다."""
+    with _session() as session:
+        updated = backfill_visible_shooting_stats(session)
+    typer.echo(f"보관된 공식 박스스코어에서 3점슛·자유투 {updated}행을 갱신했습니다.")
 
 
 @app.command("collect-season-leaders")
