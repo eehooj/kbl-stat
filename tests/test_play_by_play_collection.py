@@ -1,5 +1,14 @@
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
+
 from app.collectors.official_pages import VisiblePlayByPlayEvent
-from app.services.play_by_play_collection import derive_special_scoring
+from app.services.play_by_play_collection import (
+    SpecialScoring,
+    _verify_bench_points,
+    derive_special_scoring,
+)
 
 
 def event(clock: str, side: int, description: str) -> VisiblePlayByPlayEvent:
@@ -37,3 +46,31 @@ def test_rejects_text_broadcast_without_exact_starting_fives() -> None:
         assert "선발 5명" in str(error)
     else:
         raise AssertionError("missing starters must not be accepted")
+
+
+def test_verifies_bench_points_against_complete_visible_box_score() -> None:
+    session = MagicMock()
+    session.scalars.return_value = [
+        SimpleNamespace(player_name="선발 A", points=20),
+        SimpleNamespace(player_name="벤치 B", points=7),
+    ]
+    result = SpecialScoring(1, 7, 0, ("선발A", "선발2", "선발3", "선발4", "선발5"))
+    _verify_bench_points(session, 1, "테스트 팀", 27, result)
+
+
+def test_rejects_bench_points_that_contradict_complete_visible_box_score() -> None:
+    session = MagicMock()
+    session.scalars.return_value = [
+        SimpleNamespace(player_name="선발 A", points=20),
+        SimpleNamespace(player_name="벤치 B", points=7),
+    ]
+    result = SpecialScoring(1, 9, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    with pytest.raises(ValueError, match="공식 선수기록 합계"):
+        _verify_bench_points(session, 1, "테스트 팀", 27, result)
+
+
+def test_skips_cross_check_when_visible_box_score_is_incomplete() -> None:
+    session = MagicMock()
+    session.scalars.return_value = [SimpleNamespace(player_name="선발 A", points=20)]
+    result = SpecialScoring(1, 9, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    _verify_bench_points(session, 1, "테스트 팀", 27, result)

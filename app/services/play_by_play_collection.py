@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.collectors.official_pages import RenderedGamePlayByPlay, VisiblePlayByPlayEvent
-from app.models import VisibleGameSpecialStat
+from app.models import VisibleGameSpecialStat, VisiblePlayerGameStat
 from app.services.game_quarter_collection import (
     _matching_schedule_game,
     parse_visible_quarter_score,
@@ -77,7 +77,13 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
         if game is None:
             unlinked += 1
             continue
-        for result, team_name in zip(derive_special_scoring(rendered.events), (score.first_team_name, score.second_team_name)):
+        results = derive_special_scoring(rendered.events)
+        teams = (
+            (results[0], score.first_team_name, score.first_total),
+            (results[1], score.second_team_name, score.second_total),
+        )
+        for result, team_name, team_total in teams:
+            _verify_bench_points(session, game.id, team_name, team_total, result)
             stored = session.scalar(select(VisibleGameSpecialStat).where(
                 VisibleGameSpecialStat.schedule_game_id == game.id,
                 VisibleGameSpecialStat.team_name == team_name,
@@ -99,6 +105,31 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
     return saved, unlinked
 
 
+def _verify_bench_points(
+    session: Session,
+    schedule_game_id: int,
+    team_name: str,
+    team_total: int,
+    result: SpecialScoring,
+) -> None:
+    """Fail closed when a complete visible box score contradicts the text broadcast."""
+    rows = list(session.scalars(select(VisiblePlayerGameStat).where(
+        VisiblePlayerGameStat.schedule_game_id == schedule_game_id,
+        VisiblePlayerGameStat.team_name == team_name,
+    )))
+    if not rows or sum(row.points for row in rows) != team_total:
+        return
+    starter_names = {_normalized_name(name) for name in result.starters}
+    box_score_bench = sum(
+        row.points for row in rows if _normalized_name(row.player_name) not in starter_names
+    )
+    if box_score_bench != result.bench_points:
+        raise ValueError(
+            f"문자중계 벤치 득점이 공식 선수기록 합계와 다릅니다: "
+            f"{team_name} {result.bench_points} != {box_score_bench}"
+        )
+
+
 def _points(description: str) -> int:
     return next((points for label, points in SCORING if label in description), 0)
 
@@ -110,3 +141,7 @@ def _player(description: str, marker: str) -> str:
 def _clock_seconds(clock: str) -> int:
     minutes, seconds = clock.split(":")
     return int(minutes) * 60 + int(seconds)
+
+
+def _normalized_name(name: str) -> str:
+    return re.sub(r"\s+", "", name).casefold()
