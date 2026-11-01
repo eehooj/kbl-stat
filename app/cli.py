@@ -128,6 +128,7 @@ def evaluate_daily_picks_strategies_command() -> None:
 def refresh_daily(
     attempts: int = typer.Option(2, "--attempts", min=1, max=3, help="단계별 최대 시도 횟수"),
     game_limit: int = typer.Option(5, "--game-limit", min=1, max=20, help="완료 경기 화면 확인 상한"),
+    result_days: int = typer.Option(4, "--result-days", min=1, max=7, help="과거 Daily Picks 정답 재확인 일수"),
 ) -> None:
     """공식 화면 일일 수집을 순서대로 실행하고 실패한 단계만 제한 재시도한다."""
     steps = [
@@ -135,6 +136,7 @@ def refresh_daily(
         ("선수 시즌기록", collect_player_records),
         ("StatsKing", collect_stats_king),
         ("Daily Picks", collect_daily_picks),
+        ("Daily Picks 공식 정답", lambda: collect_daily_picks_results(result_days)),
         ("완료 경기 쿼터", lambda: collect_game_quarters(game_limit)),
         ("완료 경기 선수기록", lambda: collect_game_player_stats(game_limit)),
         ("완료 경기 문자중계", lambda: collect_game_special_scoring(game_limit, None)),

@@ -68,14 +68,14 @@ python -m app.cli predict-daily-picks
 python -m app.cli backtest-daily-picks
 python -m app.cli evaluate-daily-picks-lookbacks
 python -m app.cli evaluate-daily-picks-strategies
-python -m app.cli refresh-daily --attempts 2 --game-limit 5
+python -m app.cli refresh-daily --attempts 2 --game-limit 5 --result-days 4
 ```
 
 이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
 
 `collect-stats-king`은 공식 StatsKing의 현재 날짜 화면에 반복 표시되는 경기 카드를 모두 저장한다. `predict-stats-king --on YYYY-MM-DD`는 해당 날짜의 모든 경기에서 득점·리바운드·어시스트 후보를 경기별로 출력한다.
 
-`refresh-daily`는 일정, 선수 시즌기록, StatsKing, Daily Picks, 최근 완료 경기의 쿼터·선수기록·문자중계를 순서대로 갱신한다. 각 단계는 독립적으로 최대 1~3회만 재시도하며 한 단계가 최종 실패해도 나머지 단계는 실행한다. 실패가 하나라도 남으면 종료 코드 1을 반환하므로 외부 스케줄러가 실패를 감지할 수 있다. 일정 카드에 기록 링크가 먼저 나타났지만 문자중계 Q1~Q4 탭이 아직 준비되지 않은 경기는 정상적으로 건너뛰고 다음 실행에서 다시 확인한다. 예약 실행 자체는 사용자가 실행 주기와 환경을 정한 뒤 별도로 설정한다.
+`refresh-daily`는 일정, 선수 시즌기록, StatsKing, 당일 Daily Picks, 최근 과거 Daily Picks 공식 정답, 최근 완료 경기의 쿼터·선수기록·문자중계를 순서대로 갱신한다. `--result-days`만큼 과거 날짜를 겹쳐 다시 확인해 정답 누락을 줄인다. 각 단계는 독립적으로 최대 1~3회만 재시도하며 한 단계가 최종 실패해도 나머지 단계는 실행한다. 실패가 하나라도 남으면 종료 코드 1을 반환하므로 외부 스케줄러가 실패를 감지할 수 있다. 일정 카드에 기록 링크가 먼저 나타났지만 문자중계 Q1~Q4 탭이 아직 준비되지 않은 경기는 정상적으로 건너뛰고 다음 실행에서 다시 확인한다. 예약 실행 자체는 사용자가 실행 주기와 환경을 정한 뒤 별도로 설정한다.
 
 `evaluate-daily-picks-lookbacks`는 각 문제의 대상 경기 이후 결과를 배제한 상태에서 최근 3·5·10경기와 전체 이전 경기 기준을 같은 공식 정답에 비교한다. 이 결과는 기간 선택 연구용이며 작은 표본에서 가장 높은 값을 곧바로 생산 규칙으로 채택하지 않는다.
 
