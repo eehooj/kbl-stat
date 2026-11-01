@@ -251,6 +251,36 @@ class KBLRenderedPageClient:
     def render_stats_king(self) -> RenderedPage:
         return self.render(STATS_KING_URL)
 
+    def render_registered_roster(self) -> RenderedPage:
+        from app.services.registered_roster import MARKER, ROSTER_URL
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            page.goto(ROSTER_URL, wait_until="domcontentloaded")
+            page.wait_for_timeout(1500)
+            navigation = page.locator("select").last
+            count = navigation.locator("option").count()
+            if not count:
+                raise ValueError("등록선수 페이지 탐색 미표시")
+            seen = set()
+            rows = []
+            for number in range(1, count + 1):
+                navigation.select_option(str(number))
+                page.wait_for_timeout(700)
+                current = []
+                for row in page.locator("table tbody tr").all():
+                    cells = row.locator("td").all_inner_texts()
+                    if len(cells) == 8:
+                        current.append((cells[0].strip(), cells[1].strip()))
+                if not current or any(pair in seen for pair in current):
+                    raise ValueError("등록선수 페이지 누락 또는 중복")
+                seen.update(current)
+                rows.extend("\t".join(pair) for pair in current)
+            result = _make_rendered_page(ROSTER_URL, page.title(), MARKER + "\n".join(rows))
+            browser.close()
+            return result
+
     def render_player_records(self) -> list[RenderedPlayerRecordPage]:
         """Render every visible page of the public player season-record table."""
         with sync_playwright() as playwright:

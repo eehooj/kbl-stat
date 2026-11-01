@@ -60,6 +60,7 @@ python -m app.cli collect-team-rankings
 python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+09:00
 python -m app.cli collect-stats-king
 python -m app.cli collect-player-records
+python -m app.cli collect-registered-roster
 python -m app.cli predict-stats-king
 python -m app.cli predict-stats-king --on 2026-11-01
 python -m app.cli collect-daily-picks

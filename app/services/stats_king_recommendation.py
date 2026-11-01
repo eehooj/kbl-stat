@@ -12,6 +12,7 @@ from app.models import (
     VisiblePlayerSeasonStat,
     VisibleScheduleGame,
 )
+from app.services.registered_roster import latest_registered_roster
 
 METRICS = (
     ("득점", "points"),
@@ -63,10 +64,13 @@ def _recommend_game(session: Session, game: StatsKingVisibleGame) -> StatsKingRe
         VisiblePlayerSeasonStat.observed_at.desc(),
     )))
     players = _latest_roster_snapshot(stored_players)
+    registered = latest_registered_roster(session)
     candidates = [
         player for player in players
         if _same_team(player.team_name, game.first_team_name) or _same_team(player.team_name, game.second_team_name)
         if not _is_unavailable(player, availability)
+        if any(_same_team(player.player_name, name) and _same_team(player.team_name, team)
+               for name, team in registered)
     ]
     unavailable_players = [
         item.player_name for item in availability
@@ -96,17 +100,18 @@ def render_stats_king_recommendation(
     header = "KBL STATSKING RECOMMENDATION"
     matchup = f"경기: {game.first_team_name} vs {game.second_team_name} ({game.starts_at.isoformat()})"
     if not leaders:
-        return f"{header}\n\n{matchup}\n\n두 팀의 공개 선수 기록이 없어 추천을 만들지 않았습니다."
+        return f"{header}\n\n{matchup}\n\n등록 명단과 선수 기록에서 검증된 후보가 없어 추천을 보류합니다."
     lines = [header, matchup, "공개 시즌 전체 경기당 평균 기준 추천 (동률일 때만 최근 폼 사용, 공식 선택지·확률은 미확인):"]
     if result.unavailable_players:
         lines.append(f"확인된 결장 제외: {', '.join(result.unavailable_players)}")
+    lines.append("공식 등록선수 명단 대조 완료. 당일 출전 확정 여부는 미확인.")
     for leader in leaders:
         lines.append(
             f"{leader.metric_label}: {leader.player_name} ({leader.team_name}) - "
-            f"시즌 {leader.per_game:.2f}/경기, 최근 {leader.recent_games}경기 "
+            f"시즌 {leader.games_played}경기 {leader.per_game:.2f}/경기, 최근 {leader.recent_games}경기 "
             f"{leader.recent_per_game:.2f}/경기" if leader.recent_per_game is not None
             else f"{leader.metric_label}: {leader.player_name} ({leader.team_name}) - "
-            f"시즌 {leader.per_game:.2f}/경기, 최근 데이터 부족"
+            f"시즌 {leader.games_played}경기 {leader.per_game:.2f}/경기, 최근 데이터 부족"
         )
     return "\n".join(lines)
 

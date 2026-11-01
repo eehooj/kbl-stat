@@ -41,7 +41,7 @@ from app.services.stats_king_recommendation import (
     render_stats_king_recommendations,
 )
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
-from app.services.visible_record_collection import collect_season_leaders
+from app.services.visible_record_collection import collect_rendered_page, collect_season_leaders
 from app.services.visible_schedule_collection import (
     collect_visible_schedule,
     collect_visible_schedule_pages,
@@ -163,6 +163,7 @@ def refresh_daily(
     steps = [
         ("일정", collect_schedule),
         ("선수 시즌기록", collect_player_records),
+        ("등록선수 명단", collect_registered_roster),
         ("StatsKing", collect_stats_king),
         ("Daily Picks", collect_daily_picks),
         ("Daily Picks 공식 정답", lambda: collect_daily_picks_results(result_days)),
@@ -200,6 +201,15 @@ def collect_player_records() -> None:
     with _session() as session:
         count = collect_visible_player_records(session, pages)
     typer.echo(f"공식 선수 기록 표 {len(pages)}페이지에서 선수 기록 {count}건을 수집·갱신했습니다.")
+
+
+@app.command("collect-registered-roster")
+def collect_registered_roster() -> None:
+    """공식 등록선수 디렉터리의 모든 페이지를 수집한다."""
+    page = KBLRenderedPageClient().render_registered_roster()
+    with _session() as session:
+        collect_rendered_page(session, page, "complete registered directory")
+    typer.echo(f"공식 등록선수 {len(page.visible_text.splitlines()) - 1}명 확인")
 
 
 @app.command("record-player-unavailable")
