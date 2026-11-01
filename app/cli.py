@@ -20,7 +20,10 @@ from app.services.daily_picks_recommendation import (
 )
 from app.services.daily_picks_result_collection import collect_visible_daily_picks_results
 from app.services.daily_refresh import run_daily_refresh_steps
-from app.services.game_quarter_collection import collect_visible_quarter_scores
+from app.services.game_quarter_collection import (
+    backfill_preserved_quarter_scores,
+    collect_visible_quarter_scores,
+)
 from app.services.play_by_play_collection import collect_visible_special_scoring
 from app.services.player_availability import record_unavailable_player
 from app.services.player_game_stat_collection import (
@@ -140,6 +143,14 @@ def audit_box_scores_command() -> None:
         typer.echo(f"경기 {game} {team}: 선수 합계 {actual}, 공식 합계 {expected}")
     if mismatches:
         raise typer.Exit(code=1)
+
+
+@app.command("backfill-game-quarters")
+def backfill_game_quarters() -> None:
+    """보존된 공식 화면에서 경기요약을 복원한다."""
+    with _session() as session:
+        saved, unlinked = backfill_preserved_quarter_scores(session)
+    typer.echo(f"경기요약 {saved}건 복원, 일정 미연결 {unlinked}건")
 
 
 @app.command("refresh-daily")

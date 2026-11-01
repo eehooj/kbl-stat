@@ -1,4 +1,5 @@
 """Collect only visibly rendered quarter scores from public completed-game summaries."""
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.collectors.official_pages import RenderedPage
-from app.models import VisibleGameQuarterScore, VisibleScheduleGame
+from app.models import RawSourceDocument, VisibleGameQuarterScore, VisibleScheduleGame
 from app.services.visible_record_collection import collect_rendered_page
 
 TEAM_NAMES = (
@@ -15,6 +16,24 @@ TEAM_NAMES = (
     "창원 LG", "대구 한국가스공사", "고양 소노", "서울 삼성", "서울 SK",
 )
 RECORD_DATE = re.compile(r"/match/record/[^/]+/(?P<date>20\d{6})$")
+
+
+def backfill_preserved_quarter_scores(session: Session) -> tuple[int, int]:
+    latest: dict[str, RenderedPage] = {}
+    for doc in session.scalars(select(RawSourceDocument).order_by(RawSourceDocument.fetched_at)):
+        if not RECORD_DATE.search(doc.source_url):
+            continue
+        try:
+            payload = json.loads(doc.body)
+            page = RenderedPage(
+                url=doc.source_url, fetched_at=doc.fetched_at, title=payload.get("title", ""),
+                visible_text=payload["visible_text"], content_hash=doc.content_hash,
+            )
+            parse_visible_quarter_score(page)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            continue
+        latest[doc.source_url] = page
+    return collect_visible_quarter_scores(session, list(latest.values()))
 
 
 @dataclass(frozen=True)

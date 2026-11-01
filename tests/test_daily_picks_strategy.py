@@ -2,11 +2,28 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from app.services.daily_picks_recommendation import (
     _opponent_adjusted_averages,
     _recent_shooting_percentages,
     _recent_team_averages,
 )
+
+
+@pytest.fixture(autouse=True)
+def verified_fixture_games(monkeypatch):
+    monkeypatch.setattr("app.services.daily_picks_recommendation.verified_game_ids", lambda session: {1, 2})
+
+
+def test_unverified_games_cannot_contribute(monkeypatch) -> None:
+    monkeypatch.setattr("app.services.daily_picks_recommendation.verified_game_ids", lambda session: set())
+    target = SimpleNamespace(starts_at=datetime(2026, 11, 1), first_team_name="A", second_team_name="B")
+    session = MagicMock()
+    session.execute.return_value.all.return_value = [
+        (SimpleNamespace(team_name="A", points=100), SimpleNamespace(id=1)),
+    ]
+    assert _recent_team_averages(session, target, "points") == {}
 
 
 def test_last_selected_game_includes_all_players_but_not_older_games() -> None:

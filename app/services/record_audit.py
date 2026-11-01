@@ -5,6 +5,13 @@ from sqlalchemy.orm import Session
 from app.models import VisibleGameQuarterScore, VisiblePlayerGameStat
 
 
+def verified_game_ids(session: Session) -> set[int]:
+    grouped: dict[int, list[bool]] = {}
+    for game, _team, actual, expected in audit_box_scores(session):
+        grouped.setdefault(game, []).append(actual >= 0 and expected >= 0 and actual == expected)
+    return {game for game, checks in grouped.items() if len(checks) == 2 and all(checks)}
+
+
 def audit_box_scores(session: Session) -> list[tuple[int, str, int, int]]:
     totals: dict[tuple[int, str], int] = {}
     for row in session.scalars(select(VisiblePlayerGameStat)):

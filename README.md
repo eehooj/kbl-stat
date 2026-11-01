@@ -66,6 +66,8 @@ python -m app.cli collect-daily-picks
 python -m app.cli collect-daily-picks-results --days 7
 python -m app.cli predict-daily-picks
 python -m app.cli backtest-daily-picks
+python -m app.cli backfill-game-quarters
+python -m app.cli audit-box-scores
 python -m app.cli evaluate-daily-picks-lookbacks
 python -m app.cli evaluate-daily-picks-strategies
 python -m app.cli refresh-daily --attempts 2 --game-limit 5 --result-days 4

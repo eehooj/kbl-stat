@@ -17,6 +17,7 @@ from app.models import (
     VisibleScheduleGame,
 )
 from app.services.daily_picks_schedule_linking import classify_visible_daily_pick
+from app.services.record_audit import verified_game_ids
 
 METRIC_LABELS = {
     "field_goal_pct": "필드골 성공률",
@@ -251,6 +252,7 @@ def render_daily_picks_recommendations(items: list[DailyPicksRecommendation]) ->
 def _recent_team_averages(
     session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
+    verified = verified_game_ids(session)
     rows = session.execute(
         select(VisiblePlayerGameStat, VisibleScheduleGame)
         .join(VisibleScheduleGame, VisibleScheduleGame.id == VisiblePlayerGameStat.schedule_game_id)
@@ -259,6 +261,8 @@ def _recent_team_averages(
     ).all()
     totals: dict[str, dict[int, int]] = {target.first_team_name: {}, target.second_team_name: {}}
     for stat, game in rows:
+        if game.id not in verified:
+            continue
         target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
         value = getattr(stat, metric)
         if target_team is not None and value is not None and (
@@ -291,6 +295,7 @@ def _recent_shooting_percentages(
     session: Session, target: VisibleScheduleGame, made_field: str, attempted_field: str,
     game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
+    verified = verified_game_ids(session)
     rows = session.execute(
         select(VisiblePlayerGameStat, VisibleScheduleGame)
         .join(VisibleScheduleGame, VisibleScheduleGame.id == VisiblePlayerGameStat.schedule_game_id)
@@ -299,6 +304,8 @@ def _recent_shooting_percentages(
     ).all()
     totals: dict[str, dict[int, list[int]]] = {target.first_team_name: {}, target.second_team_name: {}}
     for stat, game in rows:
+        if game.id not in verified:
+            continue
         target_team = next((team for team in totals if _same_team(team, stat.team_name)), None)
         made = getattr(stat, made_field)
         attempted = getattr(stat, attempted_field)
@@ -317,6 +324,7 @@ def _recent_shooting_percentages(
 def _recent_special_scoring_averages(
     session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None = 5,
 ) -> dict[str, tuple[int, float]]:
+    verified = verified_game_ids(session)
     rows = session.execute(
         select(VisibleGameSpecialStat, VisibleScheduleGame)
         .join(VisibleScheduleGame, VisibleScheduleGame.id == VisibleGameSpecialStat.schedule_game_id)
@@ -325,6 +333,8 @@ def _recent_special_scoring_averages(
     ).all()
     values: dict[str, list[int]] = {target.first_team_name: [], target.second_team_name: []}
     for stat, _game in rows:
+        if _game.id not in verified:
+            continue
         target_team = next((team for team in values if _same_team(team, stat.team_name)), None)
         value = getattr(stat, metric)
         if target_team is not None and value is not None and _has_room(values[target_team], game_limit):
@@ -342,6 +352,7 @@ def _has_room(items: Sized, game_limit: int | None) -> bool:
 def _opponent_adjusted_averages(
     session: Session, target: VisibleScheduleGame, metric: str, game_limit: int | None,
 ) -> dict[str, tuple[int, float]]:
+    verified = verified_game_ids(session)
     made_attempted = None
     if metric in {"bench_points", "second_chance_points", "good_defense", "scoring_lead_seconds"}:
         rows = session.execute(
@@ -353,6 +364,8 @@ def _opponent_adjusted_averages(
         game_values: dict[int, dict[str, float]] = {}
         games: dict[int, VisibleScheduleGame] = {}
         for stat, game in rows:
+            if game.id not in verified:
+                continue
             value = getattr(stat, metric)
             if value is not None:
                 games.setdefault(game.id, game)
@@ -371,6 +384,8 @@ def _opponent_adjusted_averages(
         games = {}
         raw: dict[int, dict[str, list[float]]] = {}
         for stat, game in rows:
+            if game.id not in verified:
+                continue
             if made_attempted:
                 made, attempted = getattr(stat, made_attempted[0]), getattr(stat, made_attempted[1])
                 if made is None or attempted is None:
