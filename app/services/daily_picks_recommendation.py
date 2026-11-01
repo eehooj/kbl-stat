@@ -20,6 +20,7 @@ METRIC_LABELS = {
     "field_goal_pct": "필드골 성공률",
     "three_point_pct": "3점슛 성공률",
     "free_throw_made": "자유투 성공",
+    "rebounds": "리바운드",
     "steals": "스틸",
     "two_point_made": "2점슛 성공",
     "turnovers": "턴오버",

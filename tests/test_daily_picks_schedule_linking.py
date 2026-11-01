@@ -25,6 +25,7 @@ def test_classifies_only_metric_and_quarter_visible_in_question_text() -> None:
     }
     assert classify_visible_daily_pick("3점슛 성공률이 더 높은 팀은 어디일까요?")["metric"] == "three_point_pct"
     assert classify_visible_daily_pick("자유튜를 더 많이 성공시킨 팀은 어디일까요?")["metric"] == "free_throw_made"
+    assert classify_visible_daily_pick("리바운드가 더 많은 팀은 어디일까요?")["metric"] == "rebounds"
 
 
 def test_matches_two_team_options_without_using_a_draw_option() -> None:
