@@ -30,6 +30,7 @@ METRIC_LABELS = {
     "bench_points": "벤치 득점",
     "second_chance_points": "세컨드 찬스 득점",
     "good_defense": "굿디펜스",
+    "scoring_lead_seconds": "득점 우위시간",
 }
 
 
@@ -120,7 +121,7 @@ def _recommend_question(session: Session, question: ChallengeQuestion) -> DailyP
         averages = _recent_field_goal_percentages(session, game)
     elif metric == "three_point_pct":
         averages = _recent_three_point_percentages(session, game)
-    elif metric in {"bench_points", "second_chance_points", "good_defense"}:
+    elif metric in {"bench_points", "second_chance_points", "good_defense", "scoring_lead_seconds"}:
         averages = _recent_special_scoring_averages(session, game, metric)
     else:
         averages = _recent_team_averages(session, game, metric)

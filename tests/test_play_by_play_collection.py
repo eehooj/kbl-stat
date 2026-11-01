@@ -9,6 +9,7 @@ from app.collectors.official_pages import (
 )
 from app.services.play_by_play_collection import (
     SpecialScoring,
+    _derive_scoring_lead,
     _verify_bench_points,
     derive_special_scoring,
 )
@@ -60,7 +61,7 @@ def test_verifies_bench_points_against_complete_visible_box_score() -> None:
         SimpleNamespace(player_name="선발 A", points=20),
         SimpleNamespace(player_name="벤치 B", points=7),
     ]
-    result = SpecialScoring(1, 7, 0, 0, ("선발A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 7, 0, 0, 0, 27, ("선발A", "선발2", "선발3", "선발4", "선발5"))
     _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
 
@@ -70,7 +71,7 @@ def test_rejects_bench_points_that_contradict_complete_visible_box_score() -> No
         SimpleNamespace(player_name="선발 A", points=20),
         SimpleNamespace(player_name="벤치 B", points=7),
     ]
-    result = SpecialScoring(1, 9, 0, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 9, 0, 0, 0, 27, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
     with pytest.raises(ValueError, match="공식 선수기록 합계"):
         _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
@@ -78,7 +79,7 @@ def test_rejects_bench_points_that_contradict_complete_visible_box_score() -> No
 def test_skips_cross_check_when_visible_box_score_is_incomplete() -> None:
     session = MagicMock()
     session.scalars.return_value = [SimpleNamespace(player_name="선발 A", points=20)]
-    result = SpecialScoring(1, 9, 0, 0, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
+    result = SpecialScoring(1, 9, 0, 0, 0, 20, ("선발 A", "선발2", "선발3", "선발4", "선발5"))
     _verify_bench_points(session, 1, "테스트 팀", 27, result)
 
 
@@ -129,3 +130,13 @@ def test_reads_visible_regulation_and_overtime_period_tabs() -> None:
     assert _visible_play_by_play_periods(page) == [
         ("Q1", 1), ("Q2", 2), ("Q3", 3), ("Q4", 4), ("EQ1", 5), ("EQ2", 6),
     ]
+
+
+def test_derives_scoring_lead_time_from_visible_score_changes() -> None:
+    events = (
+        event("9:00", 1, "가 2점슛성공"),
+        event("7:00", 2, "바 3점슛성공"),
+    )
+    lead_seconds, scores = _derive_scoring_lead(events)
+    assert scores == {1: 2, 2: 3}
+    assert lead_seconds == {1: 120, 2: 2220}

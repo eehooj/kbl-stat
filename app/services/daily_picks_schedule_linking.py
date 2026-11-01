@@ -24,6 +24,7 @@ METRICS = {
     "굿디펜스": "good_defense",
     "덩크슛": "dunk_made",
     "2점슛 성공": "two_point_made",
+    "득점 우위시간": "scoring_lead_seconds",
     "득점": "points",
     "리바운드": "rebounds",
     "어시스트": "assists",

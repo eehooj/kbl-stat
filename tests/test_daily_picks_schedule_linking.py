@@ -27,6 +27,7 @@ def test_classifies_only_metric_and_quarter_visible_in_question_text() -> None:
     assert classify_visible_daily_pick("자유튜를 더 많이 성공시킨 팀은 어디일까요?")["metric"] == "free_throw_made"
     assert classify_visible_daily_pick("리바운드가 더 많은 팀은 어디일까요?")["metric"] == "rebounds"
     assert classify_visible_daily_pick("굿디펜스를 더 많이 성공한 팀은 어디일까요?")["metric"] == "good_defense"
+    assert classify_visible_daily_pick("득점 우위시간이 더 높은 팀은 어디일까요?")["metric"] == "scoring_lead_seconds"
 
 
 def test_matches_two_team_options_without_using_a_draw_option() -> None:

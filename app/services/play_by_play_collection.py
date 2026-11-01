@@ -22,6 +22,8 @@ class SpecialScoring:
     bench_points: int
     second_chance_points: int
     good_defense: int
+    scoring_lead_seconds: int
+    play_by_play_points: int
     starters: tuple[str, ...]
 
 
@@ -49,6 +51,7 @@ def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[
     bench = {1: 0, 2: 0}
     second = {1: 0, 2: 0}
     good_defense = {1: 0, 2: 0}
+    lead_seconds, play_by_play_points = _derive_scoring_lead(events)
     chance_side: int | None = None
     previous_quarter = 0
     for event in chronological:
@@ -80,7 +83,10 @@ def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[
         elif "턴오버" in description and chance_side == event.team_order:
             chance_side = None
     return tuple(
-        SpecialScoring(side, bench[side], second[side], good_defense[side], starters[side])
+        SpecialScoring(
+            side, bench[side], second[side], good_defense[side],
+            lead_seconds[side], play_by_play_points[side], starters[side],
+        )
         for side in (1, 2)
     )
 
@@ -100,6 +106,11 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
             (results[1], score.second_team_name, score.second_total),
         )
         for result, team_name, team_total in teams:
+            if result.play_by_play_points != team_total:
+                raise ValueError(
+                    f"문자중계 득점 합계가 공식 경기 합계와 다릅니다: "
+                    f"{team_name} {result.play_by_play_points} != {team_total}"
+                )
             _verify_bench_points(session, game.id, team_name, team_total, result)
             stored = session.scalar(select(VisibleGameSpecialStat).where(
                 VisibleGameSpecialStat.schedule_game_id == game.id,
@@ -109,9 +120,10 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
                 "bench_points": result.bench_points,
                 "second_chance_points": result.second_chance_points,
                 "good_defense": result.good_defense,
+                "scoring_lead_seconds": result.scoring_lead_seconds,
                 "source_url": rendered.summary_page.url,
                 "observed_at": rendered.summary_page.fetched_at,
-                "calculation_version": "visible-play-by-play-v3",
+                "calculation_version": "visible-play-by-play-v4",
             }
             if stored is None:
                 session.add(VisibleGameSpecialStat(schedule_game_id=game.id, team_name=team_name, **fields))
@@ -150,6 +162,34 @@ def _verify_bench_points(
 
 def _points(description: str) -> int:
     return next((points for label, points in SCORING if label in description), 0)
+
+
+def _derive_scoring_lead(
+    events: tuple[VisiblePlayByPlayEvent, ...],
+) -> tuple[dict[int, int], dict[int, int]]:
+    """Replay visible made-shot rows and assign each interval to the team leading then."""
+    scores = {1: 0, 2: 0}
+    lead_seconds = {1: 0, 2: 0}
+    scoring_by_period: dict[int, list[VisiblePlayByPlayEvent]] = {}
+    for index, event in sorted(
+        enumerate(events),
+        key=lambda item: (item[1].quarter, -_clock_seconds(item[1].clock), -item[0]),
+    ):
+        if _points(event.description):
+            scoring_by_period.setdefault(event.quarter, []).append(event)
+    for quarter in range(1, max(4, max((event.quarter for event in events), default=4)) + 1):
+        previous_clock = 600 if quarter <= 4 else 300
+        for event in scoring_by_period.get(quarter, []):
+            current_clock = _clock_seconds(event.clock)
+            leader = 1 if scores[1] > scores[2] else 2 if scores[2] > scores[1] else None
+            if leader is not None:
+                lead_seconds[leader] += previous_clock - current_clock
+            scores[event.team_order] += _points(event.description)
+            previous_clock = current_clock
+        leader = 1 if scores[1] > scores[2] else 2 if scores[2] > scores[1] else None
+        if leader is not None:
+            lead_seconds[leader] += previous_clock
+    return lead_seconds, scores
 
 
 def _player(description: str, marker: str) -> str:
