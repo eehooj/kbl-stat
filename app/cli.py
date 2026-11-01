@@ -15,6 +15,7 @@ from app.services.daily_picks_recommendation import (
     render_daily_picks_recommendations,
 )
 from app.services.daily_picks_result_collection import collect_visible_daily_picks_results
+from app.services.daily_refresh import run_daily_refresh_steps
 from app.services.game_quarter_collection import collect_visible_quarter_scores
 from app.services.play_by_play_collection import collect_visible_special_scoring
 from app.services.player_availability import record_unavailable_player
@@ -103,6 +104,32 @@ def backtest_daily_picks_command() -> None:
     """공식 과거 정답과 경기 전 기록만 사용한 현재 추천 규칙을 비교한다."""
     with _session() as session:
         typer.echo(render_daily_picks_backtest(backtest_daily_picks(session)))
+
+
+@app.command("refresh-daily")
+def refresh_daily(
+    attempts: int = typer.Option(2, "--attempts", min=1, max=3, help="단계별 최대 시도 횟수"),
+    game_limit: int = typer.Option(5, "--game-limit", min=1, max=20, help="완료 경기 화면 확인 상한"),
+) -> None:
+    """공식 화면 일일 수집을 순서대로 실행하고 실패한 단계만 제한 재시도한다."""
+    steps = [
+        ("일정", collect_schedule),
+        ("선수 시즌기록", collect_player_records),
+        ("StatsKing", collect_stats_king),
+        ("Daily Picks", collect_daily_picks),
+        ("완료 경기 쿼터", lambda: collect_game_quarters(game_limit)),
+        ("완료 경기 선수기록", lambda: collect_game_player_stats(game_limit)),
+        ("완료 경기 문자중계", lambda: collect_game_special_scoring(game_limit, None)),
+    ]
+    results = run_daily_refresh_steps(
+        steps, max_attempts=attempts,
+        retry_delay_seconds=get_settings().kbl_request_delay_seconds,
+    )
+    for result in results:
+        status = "완료" if result.succeeded else f"실패: {result.error}"
+        typer.echo(f"[{status}] {result.name} ({result.attempts}회 시도)")
+    if any(not result.succeeded for result in results):
+        raise typer.Exit(code=1)
 
 
 @app.command("collect-stats-king")

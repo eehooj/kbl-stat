@@ -175,10 +175,18 @@ class KBLRenderedPageClient:
                 page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
                 page.wait_for_timeout(500)
                 summary = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
-                page.get_by_text("문자중계", exact=True).click()
+                text_broadcast = page.get_by_text("문자중계", exact=True)
+                if text_broadcast.count() != 1:
+                    continue
+                text_broadcast.click()
                 page.wait_for_timeout(500)
+                try:
+                    periods = _visible_play_by_play_periods(page)
+                except ValueError:
+                    # A schedule card can expose a record link before the broadcast tabs are ready.
+                    continue
                 events: list[VisiblePlayByPlayEvent] = []
-                for label, quarter in _visible_play_by_play_periods(page):
+                for label, quarter in periods:
                     page.get_by_text(label, exact=True).click()
                     page.wait_for_timeout(300)
                     tables = page.get_by_role("table", name="문자 중계")
