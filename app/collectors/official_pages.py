@@ -54,6 +54,20 @@ class RenderedGameRecordPage:
     player_page: RenderedPage
 
 
+@dataclass(frozen=True)
+class VisiblePlayByPlayEvent:
+    quarter: int
+    clock: str
+    team_order: int
+    description: str
+
+
+@dataclass(frozen=True)
+class RenderedGamePlayByPlay:
+    summary_page: RenderedPage
+    events: tuple[VisiblePlayByPlayEvent, ...]
+
+
 class KBLRenderedPageClient:
     """Reads visible text only; it never requests KBL's internal API endpoints."""
 
@@ -136,6 +150,61 @@ class KBLRenderedPageClient:
                 rendered.append(RenderedGameRecordPage(summary_page=summary, player_page=player_page))
             browser.close()
         return rendered
+
+    def render_current_schedule_play_by_play(self, limit: int) -> list[RenderedGamePlayByPlay]:
+        """Read the four visible text-broadcast quarter tabs for completed schedule games."""
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            rendered: list[RenderedGamePlayByPlay] = []
+            for index in range(limit):
+                page.goto(MATCH_SCHEDULE_URL, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(700 if index else 1500)
+                buttons = page.get_by_text("기록", exact=True)
+                if index >= buttons.count() - 2:
+                    break
+                buttons.nth(2 + index).click()
+                page.wait_for_url(re.compile(r".*/match/record/.*"), timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+                page.wait_for_timeout(500)
+                summary = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
+                page.get_by_text("문자중계", exact=True).click()
+                page.wait_for_timeout(500)
+                events: list[VisiblePlayByPlayEvent] = []
+                for quarter in range(1, 5):
+                    page.get_by_text(f"Q{quarter}", exact=True).click()
+                    page.wait_for_timeout(300)
+                    tables = page.get_by_role("table", name="문자 중계")
+                    if tables.count() != 1:
+                        raise ValueError("문자중계 표가 화면에 하나만 표시되지 않았습니다")
+                    events.extend(_visible_play_by_play_rows(tables, quarter))
+                rendered.append(RenderedGamePlayByPlay(summary, tuple(events)))
+            browser.close()
+        return rendered
+
+    def render_game_play_by_play(self, record_url: str) -> RenderedGamePlayByPlay:
+        """Render one known public record URL and read its visible quarter tabs."""
+        if not record_url.startswith(f"{KBL_BASE_URL}/match/record/"):
+            raise ValueError("record_url must be a public KBL match record URL")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(channel=self.settings.kbl_browser_channel, headless=True)
+            page = browser.new_page(locale="ko-KR")
+            page.goto(record_url, wait_until="domcontentloaded", timeout=int(self.settings.kbl_http_timeout_seconds * 1000))
+            page.wait_for_timeout(1500)
+            summary = _make_rendered_page(page.url, page.title(), page.locator("body").inner_text())
+            page.get_by_text("문자중계", exact=True).click()
+            page.wait_for_timeout(500)
+            events: list[VisiblePlayByPlayEvent] = []
+            for quarter in range(1, 5):
+                page.get_by_text(f"Q{quarter}", exact=True).click()
+                page.wait_for_timeout(300)
+                table = page.get_by_role("table", name="문자 중계")
+                if table.count() != 1:
+                    raise ValueError("문자중계 표가 화면에 하나만 표시되지 않았습니다")
+                events.extend(_visible_play_by_play_rows(table, quarter))
+            browser.close()
+        return RenderedGamePlayByPlay(summary, tuple(events))
 
     def render_team_rankings(self) -> RenderedPage:
         return self.render(TEAM_RANKING_URL)
@@ -254,3 +323,20 @@ def _visible_player_record_rows(page) -> list[VisiblePlayerRecordRow]:
     if not rows:
         raise ValueError("KBL player-record screen did not display player rows")
     return rows
+
+
+def _visible_play_by_play_rows(table, quarter: int) -> list[VisiblePlayByPlayEvent]:
+    events: list[VisiblePlayByPlayEvent] = []
+    for row in table.locator("tr").all():
+        cells = [cell.strip() for cell in row.locator("th, td").all_inner_texts()]
+        clock_index = next((i for i, value in enumerate(cells) if MINUTE_CLOCK.fullmatch(value)), None)
+        if clock_index is None:
+            continue
+        if clock_index > 0 and cells[clock_index - 1]:
+            events.append(VisiblePlayByPlayEvent(quarter, cells[clock_index], 1, cells[clock_index - 1]))
+        if clock_index + 1 < len(cells) and cells[clock_index + 1]:
+            events.append(VisiblePlayByPlayEvent(quarter, cells[clock_index], 2, cells[clock_index + 1]))
+    return events
+
+
+MINUTE_CLOCK = re.compile(r"\d{1,2}:\d{2}")

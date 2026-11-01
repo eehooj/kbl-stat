@@ -195,6 +195,20 @@ class VisiblePlayerGameStat(Base):
     )
 
 
+class VisibleGameSpecialStat(Base):
+    """Team bench and second-chance points derived from the visible text broadcast."""
+    __tablename__ = "visible_game_special_stats"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    schedule_game_id: Mapped[int] = mapped_column(ForeignKey("visible_schedule_games.id"))
+    team_name: Mapped[str] = mapped_column(String(100))
+    bench_points: Mapped[int] = mapped_column(Integer)
+    second_chance_points: Mapped[int] = mapped_column(Integer)
+    calculation_version: Mapped[str] = mapped_column(String(50))
+    source_url: Mapped[str] = mapped_column(String(500))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("schedule_game_id", "team_name", name="uq_visible_game_special_stat"),)
+
+
 class TeamSeasonStanding(Base):
     """A team standing row exactly as displayed on KBL's team-ranking page."""
     __tablename__ = "team_season_standings"

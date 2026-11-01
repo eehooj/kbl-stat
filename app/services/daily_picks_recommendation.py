@@ -9,6 +9,7 @@ from app.models import (
     ChallengeQuestion,
     ChallengeType,
     DailyPicksScheduleLink,
+    VisibleGameSpecialStat,
     VisiblePlayerGameStat,
     VisibleScheduleGame,
 )
@@ -22,6 +23,8 @@ METRIC_LABELS = {
     "blocks": "블록슛",
     "dunk_made": "덩크슛 성공",
     "fouls": "개인 파울",
+    "bench_points": "벤치 득점",
+    "second_chance_points": "세컨드 찬스 득점",
 }
 
 
@@ -56,7 +59,12 @@ def recommend_daily_picks(session: Session) -> list[DailyPicksRecommendation]:
         if game is None or not isinstance(metric, str) or metric not in METRIC_LABELS:
             recommendations.append(DailyPicksRecommendation(question.text or "", None, None, None, None, 0, "질문 지표 미확인"))
             continue
-        averages = _recent_field_goal_percentages(session, game) if metric == "field_goal_pct" else _recent_team_averages(session, game, metric)
+        if metric == "field_goal_pct":
+            averages = _recent_field_goal_percentages(session, game)
+        elif metric in {"bench_points", "second_chance_points"}:
+            averages = _recent_special_scoring_averages(session, game, metric)
+        else:
+            averages = _recent_team_averages(session, game, metric)
         first = averages.get(game.first_team_name)
         second = averages.get(game.second_team_name)
         if first is None or second is None or min(first[0], second[0]) < 3:
@@ -126,6 +134,26 @@ def _recent_field_goal_percentages(session: Session, target: VisibleScheduleGame
     return {
         team: (len(games), (sum(item[0] for item in games.values()) / sum(item[1] for item in games.values())) * 100)
         for team, games in totals.items() if games and sum(item[1] for item in games.values()) > 0
+    }
+
+
+def _recent_special_scoring_averages(
+    session: Session, target: VisibleScheduleGame, metric: str,
+) -> dict[str, tuple[int, float]]:
+    rows = session.execute(
+        select(VisibleGameSpecialStat, VisibleScheduleGame)
+        .join(VisibleScheduleGame, VisibleScheduleGame.id == VisibleGameSpecialStat.schedule_game_id)
+        .where(VisibleScheduleGame.starts_at < target.starts_at)
+        .order_by(VisibleScheduleGame.starts_at.desc())
+    ).all()
+    values: dict[str, list[int]] = {target.first_team_name: [], target.second_team_name: []}
+    for stat, _game in rows:
+        target_team = next((team for team in values if _same_team(team, stat.team_name)), None)
+        if target_team is not None and len(values[target_team]) < 5:
+            values[target_team].append(getattr(stat, metric))
+    return {
+        team: (len(items), sum(items) / len(items))
+        for team, items in values.items() if items
     }
 
 

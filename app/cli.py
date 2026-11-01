@@ -13,6 +13,7 @@ from app.services.daily_picks_recommendation import (
     render_daily_picks_recommendations,
 )
 from app.services.game_quarter_collection import collect_visible_quarter_scores
+from app.services.play_by_play_collection import collect_visible_special_scoring
 from app.services.player_availability import record_unavailable_player
 from app.services.player_game_stat_collection import (
     backfill_visible_dunk_makes,
@@ -136,6 +137,25 @@ def collect_game_player_stats(
     with _session() as session:
         saved, unlinked = collect_visible_player_game_stats(session, pages)
     typer.echo(f"공개 경기기록 {len(pages)}건에서 선수 박스스코어 {saved}건을 저장했고, 일정 미연결은 {unlinked}건입니다.")
+
+
+@app.command("collect-game-special-scoring")
+def collect_game_special_scoring(
+    limit: int = typer.Option(5, "--limit", min=1, help="현재 일정 화면에서 확인할 완료 경기 수"),
+    record_url: str | None = typer.Option(None, "--record-url", help="검증할 공개 KBL 경기기록 URL"),
+) -> None:
+    """공식 문자중계 화면으로 벤치 득점과 세컨드 찬스 득점을 산출한다."""
+    client = KBLRenderedPageClient()
+    pages = (
+        [client.render_game_play_by_play(record_url)]
+        if record_url else client.render_current_schedule_play_by_play(limit)
+    )
+    with _session() as session:
+        saved, unlinked = collect_visible_special_scoring(session, pages)
+    typer.echo(
+        f"공식 문자중계 {len(pages)}경기에서 팀 특수 득점 {saved}건을 저장했고, "
+        f"일정 미연결은 {unlinked}건입니다."
+    )
 
 
 @app.command("backfill-game-dunks")

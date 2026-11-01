@@ -53,6 +53,7 @@ python -m app.cli collect-schedule
 python -m app.cli collect-season-schedule --season 2026-2027
 python -m app.cli collect-game-quarters
 python -m app.cli collect-game-player-stats
+python -m app.cli collect-game-special-scoring
 python -m app.cli collect-team-rankings
 python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+09:00
 python -m app.cli collect-stats-king
@@ -69,6 +70,8 @@ python -m app.cli predict-daily-picks
 `collect-game-quarters`는 현재 일정 화면에서 확인되는 완료 경기의 공개 `기록` 화면을 기본 5건만 순서대로 열어, 팀별 1~4쿼터·연장전·합계 점수를 저장한다. 상세 기록의 팀 전체명과 일정의 짧은 팀명은 같은 날짜 안에서 하나의 경기로만 확인될 때 연결한다. 더 많은 경기는 `--limit`을 명시해 수집한다.
 
 `collect-game-player-stats`는 같은 완료 경기의 공개 `경기기록` 탭에서 출전 선수별 득점·리바운드·어시스트·스틸·블록·턴오버·파울을 저장한다. 기본 수집량은 5경기이며, 최근 5경기 StatsKing 추천 보정에 쓰기 위한 데이터 기반이다.
+
+`collect-game-special-scoring`은 공개 `문자중계`의 Q1~Q4 화면에서 선발 5명, 교체, 공격리바운드와 득점 이벤트를 읽어 팀별 벤치 득점과 세컨드 찬스 득점을 산출한다. 특정 경기는 `--record-url`로 검증할 수 있다. 내부 API는 직접 호출하지 않는다.
 
 `collect-season-schedule --season 2026-2027`은 같은 화면의 월 이동 버튼으로 10월부터 다음 해 5월까지를 차례로 렌더링한다. 경기 카드가 없는 월도 화면 원문과 수집 이력은 남기며, 표시되지 않은 과거·미래 경기를 만들지 않는다.
 
