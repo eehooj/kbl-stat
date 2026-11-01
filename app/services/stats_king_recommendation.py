@@ -97,7 +97,7 @@ def render_stats_king_recommendation(
     matchup = f"경기: {game.first_team_name} vs {game.second_team_name} ({game.starts_at.isoformat()})"
     if not leaders:
         return f"{header}\n\n{matchup}\n\n두 팀의 공개 선수 기록이 없어 추천을 만들지 않았습니다."
-    lines = [header, matchup, "공개 시즌 평균과 확인 가능한 최근 폼 기준 추천 (공식 선택지·확률은 미확인):"]
+    lines = [header, matchup, "공개 시즌 전체 경기당 평균 기준 추천 (동률일 때만 최근 폼 사용, 공식 선택지·확률은 미확인):"]
     if result.unavailable_players:
         lines.append(f"확인된 결장 제외: {', '.join(result.unavailable_players)}")
     for leader in leaders:
@@ -122,7 +122,12 @@ def _leader(
         raise ValueError("경기 수가 있는 공개 선수 기록이 없습니다")
     selected = max(
         eligible,
-        key=lambda player: (_ranking_per_game(player, field, recent_forms), getattr(player, field), player.player_name),
+        key=lambda player: (
+            _ranking_per_game(player, field, recent_forms),
+            _recent_tiebreak(player, field, recent_forms),
+            getattr(player, field),
+            player.player_name,
+        ),
     )
     total = getattr(selected, field)
     recent_games, metrics = recent_forms.get((selected.player_name, selected.team_name), (0, {}))
@@ -170,11 +175,16 @@ def _ranking_per_game(
     field: str,
     recent_forms: dict[tuple[str, str], tuple[int, dict[str, float]]],
 ) -> float:
-    season_per_game = getattr(player, field) / player.games_played
-    recent_games, metrics = recent_forms.get((player.player_name, player.team_name), (0, {}))
-    if recent_games < 3 or field not in metrics:
-        return season_per_game
-    return (metrics[field] * 0.6) + (season_per_game * 0.4)
+    return getattr(player, field) / player.games_played
+
+
+def _recent_tiebreak(
+    player: VisiblePlayerSeasonStat,
+    field: str,
+    recent_forms: dict[tuple[str, str], tuple[int, dict[str, float]]],
+) -> float:
+    _recent_games, metrics = recent_forms.get((player.player_name, player.team_name), (0, {}))
+    return metrics.get(field, float("-inf"))
 
 
 def _same_team(first: str, second: str) -> bool:

@@ -25,6 +25,23 @@ def test_selects_the_highest_per_game_candidate_for_each_metric() -> None:
     assert (leader.player_name, leader.per_game) == ("선수 A", 20.0)
 
 
+def test_recent_form_does_not_override_a_higher_full_season_average() -> None:
+    season_leader = VisiblePlayerSeasonStat(
+        player_name="시즌 선두", team_name="고양 소노", games_played=10,
+        points=200, rebounds=10, assists=10, source_url="https://example.test", observed_at=None,
+    )
+    recent_leader = VisiblePlayerSeasonStat(
+        player_name="최근 선두", team_name="수원 KT", games_played=10,
+        points=190, rebounds=10, assists=10, source_url="https://example.test", observed_at=None,
+    )
+    recent_forms = {
+        ("시즌 선두", "고양 소노"): (5, {"points": 10.0}),
+        ("최근 선두", "수원 KT"): (5, {"points": 40.0}),
+    }
+    leader = _leader("득점", "points", [season_leader, recent_leader], recent_forms)
+    assert leader.player_name == "시즌 선두"
+
+
 def test_normalizes_spacing_in_visible_team_names() -> None:
     assert _same_team("울산 현대모비스", "울산현대모비스")
 
