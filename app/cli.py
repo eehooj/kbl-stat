@@ -24,10 +24,12 @@ from app.services.player_game_stat_collection import (
     collect_visible_player_game_stats,
 )
 from app.services.player_record_collection import collect_visible_player_records
-from app.services.stats_king_collection import collect_visible_stats_king_game
+from app.services.stats_king_collection import collect_visible_stats_king_games
 from app.services.stats_king_recommendation import (
     recommend_stats_king_leaders,
+    recommend_stats_king_leaders_for_date,
     render_stats_king_recommendation,
+    render_stats_king_recommendations,
 )
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_season_leaders
@@ -108,13 +110,11 @@ def collect_stats_king() -> None:
     """공식 StatsKing 화면에 보이는 경기 카드만 수집한다."""
     page = KBLRenderedPageClient().render_stats_king()
     with _session() as session:
-        game = collect_visible_stats_king_game(session, page)
-    if game is None:
+        games = collect_visible_stats_king_games(session, page)
+    if not games:
         typer.echo("공식 StatsKing 화면에 완전한 경기 카드가 표시되지 않았습니다. 문제를 만들지 않았습니다.")
         return
-    typer.echo(
-        f"공식 StatsKing 경기 카드 1건을 수집했습니다: {game.first_team_name} vs {game.second_team_name}."
-    )
+    typer.echo(f"공식 StatsKing 경기 카드 {len(games)}건을 수집·갱신했습니다.")
 
 
 @app.command("collect-player-records")
@@ -272,10 +272,15 @@ def predict_weekly6(week: str | None = typer.Option(None, "--week")) -> None:
 
 
 @app.command("predict-stats-king")
-def predict_stats_king() -> None:
-    """공개 선수 기록으로 현재 StatsKing 경기의 세 부문 후보를 추천한다."""
+def predict_stats_king(on: str | None = typer.Option(None, "--on", help="YYYY-MM-DD; 생략 시 최신 카드 날짜")) -> None:
+    """공개 선수 기록으로 지정 날짜의 모든 StatsKing 경기 후보를 추천한다."""
     with _session() as session:
-        typer.echo(render_stats_king_recommendation(recommend_stats_king_leaders(session)))
+        if on is None:
+            typer.echo(render_stats_king_recommendation(recommend_stats_king_leaders(session)))
+        else:
+            typer.echo(render_stats_king_recommendations(
+                recommend_stats_king_leaders_for_date(session, date.fromisoformat(on)),
+            ))
 
 
 @app.command("predict-all")

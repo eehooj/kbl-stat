@@ -1,5 +1,6 @@
 """Recommend public-record leaders for the two teams on the visible StatsKing game card."""
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -43,6 +44,17 @@ def recommend_stats_king_leaders(session: Session) -> StatsKingRecommendation | 
     game = session.scalar(select(StatsKingVisibleGame).order_by(StatsKingVisibleGame.observed_at.desc()))
     if game is None:
         return None
+    return _recommend_game(session, game)
+
+
+def recommend_stats_king_leaders_for_date(
+    session: Session, target_date: date,
+) -> list[StatsKingRecommendation]:
+    games = list(session.scalars(select(StatsKingVisibleGame).order_by(StatsKingVisibleGame.starts_at)))
+    return [_recommend_game(session, game) for game in games if game.starts_at.date() == target_date]
+
+
+def _recommend_game(session: Session, game: StatsKingVisibleGame) -> StatsKingRecommendation:
     availability = list(session.scalars(select(PlayerAvailability).where(
         PlayerAvailability.availability_date == game.starts_at.date(),
         PlayerAvailability.status == "out",
@@ -67,6 +79,12 @@ def recommend_stats_king_leaders(session: Session) -> StatsKingRecommendation | 
     recent_forms = _recent_forms(session, game, candidates)
     leaders = [_leader(metric_label, field, candidates, recent_forms) for metric_label, field in METRICS]
     return StatsKingRecommendation(game=game, leaders=leaders, unavailable_players=unavailable_players)
+
+
+def render_stats_king_recommendations(results: list[StatsKingRecommendation]) -> str:
+    if not results:
+        return "KBL STATSKING RECOMMENDATION\n\n해당 날짜의 StatsKing 경기 카드가 없습니다."
+    return "\n\n".join(render_stats_king_recommendation(result) for result in results)
 
 
 def render_stats_king_recommendation(

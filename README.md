@@ -61,6 +61,7 @@ python -m app.cli compute-team-form --season 2026-2027 --as-of 2026-10-29T19:00+
 python -m app.cli collect-stats-king
 python -m app.cli collect-player-records
 python -m app.cli predict-stats-king
+python -m app.cli predict-stats-king --on 2026-11-01
 python -m app.cli collect-daily-picks
 python -m app.cli collect-daily-picks-results --days 7
 python -m app.cli predict-daily-picks
@@ -68,6 +69,8 @@ python -m app.cli backtest-daily-picks
 ```
 
 이 기능은 로컬 Chrome과 Playwright 패키지가 필요하다. 로그인·CAPTCHA·제출 동작은 수행하지 않으며, 표시되지 않은 정보는 추측해 저장하지 않는다.
+
+`collect-stats-king`은 공식 StatsKing의 현재 날짜 화면에 반복 표시되는 경기 카드를 모두 저장한다. `predict-stats-king --on YYYY-MM-DD`는 해당 날짜의 모든 경기에서 득점·리바운드·어시스트 후보를 경기별로 출력한다.
 
 `collect-schedule`은 [일정 및 결과](https://www.kbl.or.kr/match/schedule) 화면의 월별 경기 카드에서 날짜·시각·장소·두 팀의 표시 순서·점수·완료 여부만 수집한다. 화면에 홈/원정 라벨이 없으므로 팀 표시 순서를 홈/원정으로 추정하지 않는다. 미래 경기에 표시되는 `0-0`은 점수가 아니라 미확정 일정으로 저장한다.
 
