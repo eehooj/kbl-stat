@@ -1,6 +1,7 @@
 """Recommend Daily Picks from prior visible team box-score totals only."""
 from collections.abc import Sized
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -131,10 +132,12 @@ def render_daily_picks_lookback_evaluations(items: list[DailyPicksLookbackEvalua
     return "\n".join(lines)
 
 
-def evaluate_daily_picks_strategies(session: Session) -> list[DailyPicksStrategyEvaluation]:
+def evaluate_daily_picks_strategies(
+    session: Session, since: date | None = None,
+) -> list[DailyPicksStrategyEvaluation]:
     evaluations: list[DailyPicksStrategyEvaluation] = []
     for strategy, opponent_adjusted in (("팀 자체 평균", False), ("상대 허용 50% 결합", True)):
-        result = _backtest_daily_picks_strategy(session, opponent_adjusted)
+        result = _backtest_daily_picks_strategy(session, opponent_adjusted, since)
         evaluations.append(DailyPicksStrategyEvaluation(
             strategy=strategy, evaluable=result.evaluable, correct=result.correct, accuracy=result.accuracy,
         ))
@@ -149,13 +152,18 @@ def render_daily_picks_strategy_evaluations(items: list[DailyPicksStrategyEvalua
     return "\n".join(lines)
 
 
-def _backtest_daily_picks_strategy(session: Session, opponent_adjusted: bool) -> DailyPicksBacktest:
+def _backtest_daily_picks_strategy(
+    session: Session, opponent_adjusted: bool, since: date | None = None,
+) -> DailyPicksBacktest:
     rows = session.execute(
         select(ChallengeQuestion, ChallengeResult)
         .join(ChallengeResult, ChallengeResult.question_id == ChallengeQuestion.id)
         .where(ChallengeQuestion.challenge_type == ChallengeType.DAILY_PICKS)
         .order_by(ChallengeQuestion.question_date)
     ).all()
+    if since is not None:
+        rows = [(question, result) for question, result in rows
+                if question.question_date is not None and question.question_date.date() >= since]
     correct = evaluable = 0
     skipped: dict[str, int] = {}
     for question, result in rows:

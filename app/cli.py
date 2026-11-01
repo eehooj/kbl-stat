@@ -29,6 +29,7 @@ from app.services.player_game_stat_collection import (
     collect_visible_player_game_stats,
 )
 from app.services.player_record_collection import collect_visible_player_records
+from app.services.record_audit import audit_box_scores
 from app.services.stats_king_collection import collect_visible_stats_king_games
 from app.services.stats_king_recommendation import (
     recommend_stats_king_leaders,
@@ -118,10 +119,27 @@ def evaluate_daily_picks_lookbacks_command() -> None:
 
 
 @app.command("evaluate-daily-picks-strategies")
-def evaluate_daily_picks_strategies_command() -> None:
+def evaluate_daily_picks_strategies_command(
+    since: str | None = typer.Option(None, "--since", help="평가 시작 날짜 YYYY-MM-DD"),
+) -> None:
     """팀 자체 평균과 상대 허용 기록 결합 전략을 공식 과거 정답에서 비교한다."""
     with _session() as session:
-        typer.echo(render_daily_picks_strategy_evaluations(evaluate_daily_picks_strategies(session)))
+        cutoff = date.fromisoformat(since) if since else None
+        typer.echo(f"평가 시작: {cutoff or '전체'}")
+        typer.echo(render_daily_picks_strategy_evaluations(evaluate_daily_picks_strategies(session, cutoff)))
+
+
+@app.command("audit-box-scores")
+def audit_box_scores_command() -> None:
+    """선수 득점 합계를 보관된 공식 경기요약 최종 점수와 대조한다."""
+    with _session() as session:
+        rows = audit_box_scores(session)
+    mismatches = [row for row in rows if row[2] != row[3]]
+    typer.echo(f"검사 {len(rows)}팀 / 불일치·누락 {len(mismatches)}팀 (-1: 해당 근거 미수집)")
+    for game, team, actual, expected in mismatches:
+        typer.echo(f"경기 {game} {team}: 선수 합계 {actual}, 공식 합계 {expected}")
+    if mismatches:
+        raise typer.Exit(code=1)
 
 
 @app.command("refresh-daily")
