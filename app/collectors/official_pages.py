@@ -172,8 +172,8 @@ class KBLRenderedPageClient:
                 page.get_by_text("문자중계", exact=True).click()
                 page.wait_for_timeout(500)
                 events: list[VisiblePlayByPlayEvent] = []
-                for quarter in range(1, 5):
-                    page.get_by_text(f"Q{quarter}", exact=True).click()
+                for label, quarter in _visible_play_by_play_periods(page):
+                    page.get_by_text(label, exact=True).click()
                     page.wait_for_timeout(300)
                     tables = page.get_by_role("table", name="문자 중계")
                     if tables.count() != 1:
@@ -196,8 +196,8 @@ class KBLRenderedPageClient:
             page.get_by_text("문자중계", exact=True).click()
             page.wait_for_timeout(500)
             events: list[VisiblePlayByPlayEvent] = []
-            for quarter in range(1, 5):
-                page.get_by_text(f"Q{quarter}", exact=True).click()
+            for label, quarter in _visible_play_by_play_periods(page):
+                page.get_by_text(label, exact=True).click()
                 page.wait_for_timeout(300)
                 table = page.get_by_role("table", name="문자 중계")
                 if table.count() != 1:
@@ -340,3 +340,19 @@ def _visible_play_by_play_rows(table, quarter: int) -> list[VisiblePlayByPlayEve
 
 
 MINUTE_CLOCK = re.compile(r"\d{1,2}:\d{2}")
+
+
+def _visible_play_by_play_periods(page) -> list[tuple[str, int]]:
+    """Return regulation and overtime tabs exactly as displayed on the broadcast screen."""
+    periods: list[tuple[str, int]] = []
+    for label in page.locator(".view-tab label").all_inner_texts():
+        normalized = label.strip()
+        regulation = re.fullmatch(r"Q([1-4])", normalized)
+        overtime = re.fullmatch(r"EQ(\d+)", normalized)
+        if regulation:
+            periods.append((normalized, int(regulation[1])))
+        elif overtime:
+            periods.append((normalized, 4 + int(overtime[1])))
+    if [period for _label, period in periods[:4]] != [1, 2, 3, 4]:
+        raise ValueError("문자중계 화면에서 Q1~Q4 탭을 확인할 수 없습니다")
+    return periods

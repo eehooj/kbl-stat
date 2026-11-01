@@ -25,7 +25,17 @@ class SpecialScoring:
 
 
 def derive_special_scoring(events: tuple[VisiblePlayByPlayEvent, ...]) -> tuple[SpecialScoring, SpecialScoring]:
-    chronological = sorted(events, key=lambda event: (event.quarter, -_clock_seconds(event.clock)))
+    indexed_events = enumerate(events)
+    chronological = [
+        event for _index, event in sorted(
+            indexed_events,
+            key=lambda item: (
+                item[1].quarter,
+                -_clock_seconds(item[1].clock),
+                -item[0],
+            ),
+        )
+    ]
     starters = {
         side: tuple(_player(event.description, "교체(IN)") for event in chronological
                     if event.quarter == 1 and event.clock == "10:00" and event.team_order == side
@@ -93,7 +103,7 @@ def collect_visible_special_scoring(session: Session, pages: list[RenderedGamePl
                 "second_chance_points": result.second_chance_points,
                 "source_url": rendered.summary_page.url,
                 "observed_at": rendered.summary_page.fetched_at,
-                "calculation_version": "visible-play-by-play-v1",
+                "calculation_version": "visible-play-by-play-v2",
             }
             if stored is None:
                 session.add(VisibleGameSpecialStat(schedule_game_id=game.id, team_name=team_name, **fields))
