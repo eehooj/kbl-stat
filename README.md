@@ -62,6 +62,7 @@ python -m app.cli collect-stats-king
 python -m app.cli collect-player-records
 python -m app.cli collect-registered-roster
 python -m app.cli predict-stats-king
+python -m app.cli evaluate-stats-king-shrinkage --since 2026-11-01
 python -m app.cli predict-stats-king --on 2026-11-01
 python -m app.cli collect-daily-picks
 python -m app.cli collect-daily-picks-results --days 7

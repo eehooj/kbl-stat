@@ -40,6 +40,7 @@ from app.services.stats_king_recommendation import (
     render_stats_king_recommendation,
     render_stats_king_recommendations,
 )
+from app.services.stats_king_research import evaluate_shrinkage
 from app.services.team_form_features import compute_and_store_team_forms, parse_as_of
 from app.services.visible_record_collection import collect_rendered_page, collect_season_leaders
 from app.services.visible_schedule_collection import (
@@ -355,6 +356,13 @@ def compute_team_form(
 def predict_weekly6(week: str | None = typer.Option(None, "--week")) -> None:
     with _session() as session:
         typer.echo(render_weekly6(get_round(session, week)))
+
+
+@app.command("evaluate-stats-king-shrinkage")
+def evaluate_stats_king_shrinkage(since: str = typer.Option("2026-11-01", "--since")) -> None:
+    """경기 이전 기록만으로 소표본 평균 보정 연구 모델을 비교한다."""
+    with _session() as session:
+        typer.echo(evaluate_shrinkage(session, date.fromisoformat(since)))
 
 
 @app.command("predict-stats-king")
